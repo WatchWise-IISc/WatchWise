@@ -1,0 +1,32 @@
+# --- macOS ---
+.DS_Store
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.ipynb_checkpoints/
+.venv/
+venv/
+env/
+
+# --- Local tooling / IDE ---
+.claude/
+.idea/
+.vscode/
+
+# --- Secrets / environment ---
+.env
+*.env
+*.key
+
+# --- Canonical spec (excluded from the repo per request) ---
+WATCHWISE_MASTER_SPEC.md
+
+# --- Large downloaded / cached / generated data (regenerable by the pipeline) ---
+data/raw/
+data/cache/
+kaggle downloads/

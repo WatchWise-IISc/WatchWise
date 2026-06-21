@@ -1,0 +1,20 @@
+# WatchWise 2.0 dependencies.
+# Core (training/eval): torch + the scientific stack.
+torch>=2.0
+numpy>=1.24
+pandas>=2.0
+scikit-learn>=1.2
+scipy>=1.10
+pyarrow>=12.0
+matplotlib>=3.6
+
+# Demo dashboard.
+gradio>=4.0,<5          # gradio 5 needs Python >=3.10; 4.x supports 3.9
+plotly>=5.0
+
+# Frozen text encoder (optional — TF-IDF+SVD fallback runs if this/its model is
+# unavailable, e.g. Kaggle with internet off).
+sentence-transformers>=2.2
+
+# TPU only (Kaggle "TPU v5e-8"); imported lazily, not needed elsewhere:
+#   pip install torch_xla
