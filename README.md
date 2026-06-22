@@ -45,13 +45,25 @@ pip install -r requirements.txt
 
 # Full pipeline: download -> MF -> diffusion -> groups -> RL -> evaluation
 python scripts/run_all.py --accelerator auto
-
-# Then the interactive 3-mode demo (offline, no API calls)
-python app/demo.py
 ```
 
 Stages can also be run one at a time (`scripts/01_prepare_data.py` … `06_evaluate.py`);
 each caches its output under `data/cache/<dataset>/`, and results land in `results/`.
+
+### Run the app (React + FastAPI)
+
+```bash
+pip install -r requirements.txt
+./app/start.sh                       # phase2 by default; --phase phase1 for the small dataset
+# Frontend: http://localhost:5173   Backend: http://localhost:8000/docs
+```
+
+`start.sh` installs the frontend deps (`npm install`) and, on first run, **downloads the
+phase2 model-artifact cache (~416 MB) from the GitHub Release** into `data/cache/ml-25m/`
+(the binaries are too large for plain git, so `data/cache/` is gitignored). The download
+needs the Release `phase2-cache` to exist with asset `ml-25m-cache.tar.gz`; otherwise
+regenerate the cache with `python scripts/run_all.py --phase phase2`. You can also fetch
+the cache on its own with `./scripts/fetch_cache.sh phase2`.
 
 ## Runs anywhere — pick your accelerator
 

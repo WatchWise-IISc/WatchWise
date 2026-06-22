@@ -25,7 +25,7 @@ engine: Optional[DemoEngine] = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global engine
-    phase = os.environ.get("WATCHWISE_PHASE", "phase1")
+    phase = os.environ.get("WATCHWISE_PHASE", "phase2")
     print(f"[api] loading cached artifacts (phase={phase}) ...")
     engine = DemoEngine(phase=phase)
     print("[api] ready.")

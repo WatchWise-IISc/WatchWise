@@ -5,7 +5,7 @@
 set -e
 cd "$(dirname "$0")/.."
 
-PHASE="${WATCHWISE_PHASE:-phase1}"
+PHASE="${WATCHWISE_PHASE:-phase2}"
 for arg in "$@"; do
   case $arg in
     --phase=*) PHASE="${arg#*=}" ;;
@@ -17,6 +17,10 @@ export WATCHWISE_PHASE="$PHASE"
 
 echo "=== WatchWise 2.0 (phase=$PHASE) ==="
 echo ""
+
+# Ensure cached model artifacts exist (downloads from the GitHub Release on first run;
+# data/cache/ is gitignored because the binaries are too large for plain git).
+bash scripts/fetch_cache.sh "$PHASE"
 
 # Check if node_modules exists
 if [ ! -d "app/frontend/node_modules" ]; then

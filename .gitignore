@@ -34,3 +34,6 @@ WATCHWISE_MASTER_SPEC.md
 data/raw/
 data/cache/
 kaggle downloads/
+
+# --- Cache tarballs built for the GitHub Release (uploaded as assets, not committed) ---
+*-cache.tar.gz
