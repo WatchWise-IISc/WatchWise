@@ -1,0 +1,33 @@
+const API_BASE = '/api';
+
+export async function fetchHealth() {
+  const res = await fetch(`${API_BASE}/health`);
+  return res.json();
+}
+
+export async function fetchGroups(kind) {
+  const res = await fetch(`${API_BASE}/groups?kind=${kind}`);
+  return res.json();
+}
+
+export async function fetchMode1(gid) {
+  const res = await fetch(`${API_BASE}/mode1/recommend?gid=${gid}`);
+  return res.json();
+}
+
+export async function fetchMode2(gid, region, allowTeen) {
+  const res = await fetch(
+    `${API_BASE}/mode2/recommend?gid=${gid}&region=${region}&allow_teen=${allowTeen}`
+  );
+  return res.json();
+}
+
+export async function fetchFamilies() {
+  const res = await fetch(`${API_BASE}/mode3/families`);
+  return res.json();
+}
+
+export async function fetchMode3(familyName) {
+  const res = await fetch(`${API_BASE}/mode3/recommend?family=${encodeURIComponent(familyName)}`);
+  return res.json();
+}
