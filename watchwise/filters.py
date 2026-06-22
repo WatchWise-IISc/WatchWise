@@ -28,8 +28,8 @@ def movie_passes(row: pd.Series, region: RegionConfig, allow_teen: bool = True) 
         return False
     cert = row[f"cert_{region.watch_region}"]
     allowed = set(region.family_safe_certs)
-    if allow_teen:
-        allowed |= {"UA", "U/A", "PG-13", "PG"}
+    if allow_teen:                               # add this region's older-teen tier
+        allowed |= set(region.teen_certs)
     if cert not in allowed:
         return False
     if len(_providers(row, region)) == 0:        # not streamable on any allowlisted platform

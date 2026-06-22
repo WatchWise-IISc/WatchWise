@@ -118,8 +118,12 @@ class DemoEngine:
     def _slate_df(self, slate, members, region_code=None) -> pd.DataFrame:
         if not slate:
             return pd.DataFrame([{"(no movies)": "filters left nothing — relax constraints"}])
-        pred = self.mf.predict(members, slate)             # [members, K]
-        best_for = pred.argmax(axis=1)                     # member -> slate position
+        pred = self.mf.predict(members, slate)             # [members, K] 0.5-5 rating
+        # "Best for" = within-member taste-fit (percentile of the predicted rating in
+        # the member's own catalog distribution), the satisfaction signal the reranker
+        # optimises — not the raw, popularity-dominated rating. See engine._slate_data.
+        sat = self.space.member_satisfaction(members, slate)
+        best_for = sat.argmax(axis=1)                      # member -> slate position
         rows = []
         for j, m in enumerate(slate):
             r = self.catalog_by_idx.loc[m]

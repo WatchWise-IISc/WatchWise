@@ -29,7 +29,8 @@ class RegionConfig:
     platforms: List[str]              # provider names treated as "available"
     languages: List[str]              # acceptable original_language codes (ISO 639-1)
     max_runtime_min: int              # runtime cap for "tonight"
-    family_safe_certs: List[str]      # certification allowlist (per national rating system)
+    family_safe_certs: List[str]      # youngest-safe allowlist (per national rating system)
+    teen_certs: List[str]             # older-teen tier added only when allow_teen=True
     rating_system: str                # CBFC / MPAA / ...
 
 
@@ -40,7 +41,10 @@ REGIONS: Dict[str, RegionConfig] = {
         platforms=["Netflix", "Disney+ Hotstar", "Amazon Prime Video", "Zee5", "SonyLIV"],
         languages=["hi", "ta", "en"],
         max_runtime_min=150,
-        family_safe_certs=["U", "UA", "U/A"],   # exclude A, S
+        # CBFC: U = all ages, UA = parental guidance (older-teen), A/S = adult (excluded).
+        # UA is the *teen* tier, so allow_teen=False (young child) tightens to U-only.
+        family_safe_certs=["U"],
+        teen_certs=["UA", "U/A"],
         rating_system="CBFC",
     ),
     "US": RegionConfig(
@@ -49,7 +53,9 @@ REGIONS: Dict[str, RegionConfig] = {
         platforms=["Netflix", "Disney+", "Hulu", "Amazon Prime Video", "Max"],
         languages=["en"],
         max_runtime_min=150,
-        family_safe_certs=["G", "PG"],          # PG-13 togglable; exclude R, NC-17
+        # MPAA: G/PG youngest-safe, PG-13 the togglable teen tier; R/NC-17 excluded.
+        family_safe_certs=["G", "PG"],
+        teen_certs=["PG-13"],
         rating_system="MPAA",
     ),
 }
