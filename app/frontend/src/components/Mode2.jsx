@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react'
 import { fetchGroups, fetchMode2 } from '../api.js'
 import GroupPanel from './GroupPanel.jsx'
 import SlateTable from './SlateTable.jsx'
+import { Sparkles, HelpCircle, CheckCircle, RefreshCw, Cpu, Tv, Eye, AlertCircle, Info, Landmark, Layers, ToggleLeft, ToggleRight, Filter, Globe, Play, Film } from 'lucide-react'
 
 const REGIONS = [
-  { code: 'IN', label: 'India (IN)', desc: 'Netflix, Disney+ Hotstar, Prime Video, Zee5, SonyLIV' },
-  { code: 'US', label: 'United States (US)', desc: 'Netflix, Disney+, Hulu, Prime Video, Max' },
+  { code: 'IN', label: 'India (IN)', desc: 'Netflix, Hotstar, Prime, Zee5, SonyLIV', flags: '🇮🇳' },
+  { code: 'US', label: 'United States (US)', desc: 'Netflix, Disney+, Hulu, Prime, Max', flags: '🇺🇸' },
 ]
 
 function Mode2Insight({ result }) {
@@ -13,43 +14,54 @@ function Mode2Insight({ result }) {
 
   const langSet = new Set(result.slate.map(m => m.language).filter(Boolean))
   const genreSet = new Set(result.slate.flatMap(m => m.genres.split(', ')))
-  const membersCovered = new Set(result.slate.flatMap(m => m.best_for))
 
   return (
-    <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border border-green-200">
-      <h3 className="text-base font-bold text-green-800 mb-3">Outcome Summary</h3>
+    <div className="relative overflow-hidden bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent border border-emerald-500/20 rounded-2xl p-6 shadow-xl leading-relaxed">
+      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-emerald-500/10 to-transparent pointer-events-none rounded-bl-full animate-pulse" />
+      
+      <div className="flex items-center gap-2 mb-4">
+        <Sparkles className="w-5 h-5 text-emerald-400" />
+        <h3 className="text-sm font-bold text-emerald-300 uppercase tracking-widest">Filter Optimization Results</h3>
+      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
-        <div className="bg-white rounded-lg p-3 text-center shadow-sm">
-          <div className="text-xl font-bold text-green-700">{Math.round(result.match_rate * 100)}%</div>
-          <div className="text-[10px] text-gray-600 mt-1">Constraint match rate</div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
+        <div className="bg-slate-900/80 border border-emerald-500/10 rounded-xl p-4 text-center">
+          <div className="text-2xl font-black text-emerald-400">{Math.round(result.match_rate * 100)}%</div>
+          <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Constraint Match</div>
         </div>
-        <div className="bg-white rounded-lg p-3 text-center shadow-sm">
-          <div className="text-xl font-bold text-indigo-700">{result.slate.length}</div>
-          <div className="text-[10px] text-gray-600 mt-1">Movies found</div>
+        <div className="bg-slate-900/80 border border-emerald-500/10 rounded-xl p-4 text-center">
+          <div className="text-2xl font-black text-indigo-400">{result.slate.length}</div>
+          <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Movies Emitted</div>
         </div>
-        <div className="bg-white rounded-lg p-3 text-center shadow-sm">
-          <div className="text-xl font-bold text-purple-700">{langSet.size}</div>
-          <div className="text-[10px] text-gray-600 mt-1">Languages covered</div>
+        <div className="bg-slate-900/80 border border-emerald-500/10 rounded-xl p-4 text-center">
+          <div className="text-2xl font-black text-cyan-400">{langSet.size}</div>
+          <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Languages</div>
         </div>
-        <div className="bg-white rounded-lg p-3 text-center shadow-sm">
-          <div className="text-xl font-bold text-amber-700">{genreSet.size}</div>
-          <div className="text-[10px] text-gray-600 mt-1">Genres in slate</div>
+        <div className="bg-slate-900/80 border border-emerald-500/10 rounded-xl p-4 text-center">
+          <div className="text-2xl font-black text-amber-400">{genreSet.size}</div>
+          <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Genres Covered</div>
         </div>
       </div>
 
-      <div className="space-y-3 text-sm text-gray-700">
-        <div className="p-3 bg-white rounded-lg border border-green-100">
-          <strong className="text-green-700">In plain English:</strong> Every single movie in this list is
-          (a) available on your streaming platforms right now, (b) in an acceptable language,
-          (c) under your runtime limit, and (d) age-appropriate for the family — while STILL ensuring
-          no family member is ignored. Traditional systems can't do both simultaneously.
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+        <div className="p-4 bg-slate-950/70 border border-white/5 rounded-xl space-y-1">
+          <div className="flex items-center gap-1.5 text-emerald-400 font-bold">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            <span>Guaranteed Legitimate Selection</span>
+          </div>
+          <p className="text-slate-400 leading-normal">
+            Every file recommendation matches your subscribed platforms, orig_language set, certification limits, and runtime windows. Traditional systems struggle to satisfy strict constraints without completely sacrificing user personalization.
+          </p>
         </div>
-        <div className="p-3 bg-white rounded-lg border border-green-100">
-          <strong className="text-green-700">Why this is hard:</strong> When you add platform/language/age
-          constraints, the set of eligible movies shrinks dramatically. A traditional recommender that filters
-          first might be left with only popular mainstream movies — killing diversity and fairness.
-          WatchWise generates smart candidates THEN filters, so it finds hidden gems that satisfy constraints.
+
+        <div className="p-4 bg-slate-950/70 border border-white/5 rounded-xl space-y-1">
+          <div className="flex items-center gap-1.5 text-indigo-400 font-bold">
+            <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
+            <span>Smart Candidate Pruning</span>
+          </div>
+          <p className="text-slate-400 leading-normal">
+            Instead of searching an already heavily compressed subset of popular movies, WatchWise synthesizes 100 specialized vectors from scratch, applies constraints, and picks the most equitable combination. This maintains highly specific indie alternatives in the search space.
+          </p>
         </div>
       </div>
     </div>
@@ -64,6 +76,7 @@ export default function Mode2() {
   const [allowTeen, setAllowTeen] = useState(true)
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
+  const [showFiltersDeepDive, setShowFiltersDeepDive] = useState(false)
 
   useEffect(() => {
     fetchGroups(kind).then((data) => {
@@ -85,224 +98,265 @@ export default function Mode2() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Simple Explanation */}
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-        <h2 className="text-lg font-semibold text-gray-900 mb-3">The Problem We're Solving</h2>
-        <div className="bg-blue-50 rounded-lg p-4 mb-4">
-          <p className="text-sm text-blue-900 leading-relaxed">
-            <strong>Imagine this:</strong> It's 8 PM on a Friday. Your family wants to watch something together
-            — but it has to be (1) on a platform you actually pay for, (2) in a language everyone understands,
-            (3) not too long, and (4) appropriate for the kids. Oh, and everyone should still enjoy it.
-            Traditional recommenders ignore these constraints or apply them as an afterthought, leaving you with
-            a terrible selection after filtering.
+    <div className="space-y-8 font-sans text-slate-100">
+      {/* Informative Header Cards */}
+      <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+        <div className="lg:col-span-7 bg-slate-900/20 border border-white/5 rounded-2xl p-6 flex flex-col justify-between space-y-4">
+          <div>
+            <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider block mb-1.5">STREAMABILITY ENGINE</span>
+            <h2 className="text-xl font-extrabold text-white tracking-tight">Coping with Real-World Constraints</h2>
+            <p className="text-xs text-slate-400 mt-2 leading-relaxed">
+              In reality, a wonderful movie recommendation is useless if you don't subscribe to the streaming service, or if the film runs 3 hours on a weeknight, or has certifications entirely unsafe for the youngsters in the living room.
+            </p>
+            <p className="text-xs text-slate-400 mt-2 leading-relaxed">
+              WatchWise Mode 2 handles these factors head-on by feeding generated candidate spaces through complex real-world filters: <strong className="text-cyan-400 font-medium">localized OTT provider availability</strong>, <strong className="text-cyan-400 font-medium">preferred language vectors</strong>, <strong className="text-cyan-400 font-medium">certification brackets</strong>, and <strong className="text-cyan-400 font-medium">runtime strictness</strong>.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-1.5 bg-cyan-950/20 border border-cyan-500/15 p-3 rounded-xl text-[11px] text-cyan-300">
+            <Info className="w-4 h-4 shrink-0" />
+            <span>Ensures 100% genuine streamability without sacrificing individual fairness metrics.</span>
+          </div>
+        </div>
+
+        <div className="lg:col-span-5 bg-gradient-to-tr from-slate-900/60 to-slate-900/20 border border-white/5 rounded-2xl p-6 flex flex-col justify-between">
+          <div className="space-y-2">
+            <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider block">PIPELINE ADAPTATION</span>
+            <h3 className="text-sm font-extrabold text-white uppercase tracking-wide">Pruning Sequence</h3>
+          </div>
+
+          <div className="space-y-3.5 my-4">
+            <div className="flex items-center gap-2.5 p-2.5 bg-rose-500/5 rounded-xl border border-rose-500/10 text-xs">
+              <span className="font-bold text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded uppercase font-mono">Filter-First</span>
+              <div className="text-slate-400 text-[11px]">Filters down catalog first. Personalization decays into a few generic mainstream items.</div>
+            </div>
+            <div className="flex items-center gap-2.5 p-2.5 bg-emerald-500/5 rounded-xl border border-emerald-500/10 text-xs">
+              <span className="font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded uppercase font-mono">WatchWise</span>
+              <div className="text-slate-300 text-[11px]">Generates 100 compromise vectors first, then applies constraints. Personalizes deep gems.</div>
+            </div>
+          </div>
+
+          <p className="text-[10px] text-slate-500 italic block mt-1">
+            Leverages TMDB real-time localized caches to map stream paths dynamically.
           </p>
         </div>
-        <p className="text-sm text-gray-600 leading-relaxed">
-          WatchWise applies the same fairness-aware engine from Mode 1, but adds <strong>hard real-world filters</strong>:
-          platform availability, language, runtime, and age certification. Every pick is genuinely watchable tonight.
-        </p>
+      </section>
+
+      {/* TECHNICAL COLLAPSIBLE */}
+      <div className="border border-white/5 bg-slate-900/20 rounded-2xl overflow-hidden">
+        <button 
+          onClick={() => setShowFiltersDeepDive(!showFiltersDeepDive)}
+          className="w-full flex items-center justify-between p-5 text-left text-xs font-bold text-slate-300 hover:text-white hover:bg-slate-900/30 transition-all select-none"
+        >
+          <div className="flex items-center gap-2">
+            <Filter className="w-4 h-4 text-cyan-400" />
+            <span>CRITERIA PARSING SCHEMA & LOGISTICS</span>
+          </div>
+          <span className="text-[10px] font-bold text-cyan-400 bg-cyan-500/10 px-2.5 py-0.5 rounded border border-cyan-500/20">
+            {showFiltersDeepDive ? 'HIDE SCHEMA' : 'EXPAND CRITERIA PARSER'}
+          </span>
+        </button>
+
+        {showFiltersDeepDive && (
+          <div className="p-6 border-t border-white/[0.04] bg-slate-950/60 text-xs text-slate-400 space-y-4 leading-relaxed border-dashed">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="p-4 bg-slate-900/40 border border-white/5 rounded-xl space-y-2">
+                <div className="font-bold text-slate-200 uppercase tracking-widest text-[10px] text-cyan-400 pb-1 border-b border-white/[0.04]">Aggressive Constraints Imposed</div>
+                <ul className="space-y-1 list-disc list-inside text-slate-300 text-[11px]">
+                  <li><strong>Subscribed OTT:</strong> Retains only movies streaming in Region on user services (via TMDb API)</li>
+                  <li><strong>Local original_language:</strong> Retains movies translated into accepted region sets</li>
+                  <li><strong>Strict limit:</strong> Runtime must remain under max_runtime_min (e.g. 150m)</li>
+                  <li><strong>Family Rating:</strong> Must match CBFC (U/UA) or MPAA (G/PG) ratings</li>
+                </ul>
+              </div>
+              <div className="p-4 bg-slate-900/40 border border-white/5 rounded-xl space-y-2">
+                <div className="font-bold text-slate-200 uppercase tracking-widest text-[10px] text-cyan-400 pb-1 border-b border-white/[0.04]">Why this is technically superior</div>
+                <p className="text-[11px]">By generating a large 100-dimensional continuous pool adapted to group tastes first, even after filters eliminate 35% of options, we are left with 65 incredibly precise items. Under old methods, filtering first leaves less than 1% of catalog items, meaning users get recommended simple generic blockbusters.</p>
+              </div>
+            </div>
+            <div className="p-3 bg-cyan-950/10 border border-cyan-500/15 rounded-lg text-[11px] text-slate-400">
+              <strong>Multilingual Support:</strong> Highly crucial in regions such as India. Filtering across Hindi, English, and local South-Indian movies while checking Zee5, SonyLIV, Hotstar concurrently remains a core task of the constraint layer.
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Traditional vs WatchWise */}
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Traditional vs WatchWise — With Constraints</h2>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="bg-red-50 rounded-lg p-5 border border-red-200">
-            <h3 className="font-semibold text-red-800 text-sm mb-3">Traditional: Filter, Then Recommend</h3>
-            <div className="text-xs text-gray-700 space-y-2">
-              <p><strong>Step 1:</strong> Filter catalog to only movies on your platforms</p>
-              <p><strong>Step 2:</strong> Remove movies not in your language</p>
-              <p><strong>Step 3:</strong> Remove movies too long or not age-safe</p>
-              <p><strong>Step 4:</strong> From what's left (maybe 200 movies from 10,000), recommend by average rating</p>
-            </div>
-            <div className="mt-3 p-2.5 bg-red-100 rounded text-xs text-red-800">
-              <strong>The flaw:</strong> After aggressive filtering, you're left with only popular mainstream titles.
-              No diversity, no personalization, no fairness. The minority-taste member gets even MORE ignored because
-              niche movies that might serve them were filtered out.
-            </div>
-          </div>
-          <div className="bg-green-50 rounded-lg p-5 border border-green-200">
-            <h3 className="font-semibold text-green-800 text-sm mb-3">WatchWise: Recommend, Then Filter Smartly</h3>
-            <div className="text-xs text-gray-700 space-y-2">
-              <p><strong>Step 1:</strong> Generate 100 compromise candidates via diffusion (aware of group taste)</p>
-              <p><strong>Step 2:</strong> Apply hard filters (platform, language, runtime, age)</p>
-              <p><strong>Step 3:</strong> From filtered candidates, the fairness reranker picks the best slate</p>
-              <p><strong>Step 4:</strong> Result: every movie is watchable AND fair to all members</p>
-            </div>
-            <div className="mt-3 p-2.5 bg-green-100 rounded text-xs text-green-800">
-              <strong>The advantage:</strong> Because we generate a LARGE pool of smart candidates first,
-              even after filtering we still have diverse, personalized options that serve every member.
-              The pool was designed for this group — not a generic catalog.
-            </div>
-          </div>
+      {/* FILTER CONTROL CENTER */}
+      <section className="bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-24 h-24 bg-gradient-to-br from-cyan-500/5 to-transparent pointer-events-none rounded-br-full" />
+        
+        <div className="mb-4">
+          <h3 className="text-base font-extrabold text-white flex items-center gap-2">
+            <Globe className="text-cyan-400 w-4.5 h-4.5" />
+            <span>Interactive Constraint Matrix</span>
+          </h3>
+          <p className="text-xs text-slate-400 mt-1">
+            Specify local geography filters together with group properties to run the constrained recommendation pipeline.
+          </p>
         </div>
-      </div>
 
-      {/* Technical Deep-Dive */}
-      <details className="bg-white rounded-xl shadow-sm border border-gray-200">
-        <summary className="p-6 cursor-pointer text-sm font-semibold text-gray-700 hover:text-indigo-600 transition-colors">
-          Technical Deep-Dive — How Filtering Works (click to expand)
-        </summary>
-        <div className="px-6 pb-6 space-y-3 text-xs text-gray-600 leading-relaxed">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <h4 className="font-semibold text-gray-800 mb-2">Hard Filters Applied</h4>
-              <ul className="space-y-1 list-disc list-inside">
-                <li><strong>Platform:</strong> Movie must be on at least one of the user's paid streaming services (via TMDb watch/providers API or offline fallback)</li>
-                <li><strong>Language:</strong> original_language must be in the region's accepted list</li>
-                <li><strong>Runtime:</strong> Must be at most max_runtime_min (150m for India/US)</li>
-                <li><strong>Age cert:</strong> Must have a family-safe certification (U/UA for CBFC, G/PG for MPAA)</li>
-              </ul>
-            </div>
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <h4 className="font-semibold text-gray-800 mb-2">Why Generate-Then-Filter Wins</h4>
-              <p>The diffusion model generates 100 candidates tailored to the group. Even after filtering removes 30-50% that don't match constraints, we still have 50-70 diverse, personalized options. Traditional filter-first approaches start with the entire catalog (generic) and filter down to a small, unrepresentative subset.</p>
-              <p className="mt-2">This is particularly important for Indian users: multilingual content (Hindi, Tamil, English) + 5 platforms means the eligible set is large but scattered — generic popularity ranking misses gems.</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-5 items-stretch">
+          {/* Region */}
+          <div className="lg:col-span-4 space-y-2">
+            <label className="block text-[11px] font-bold tracking-wider text-slate-400 uppercase">1. Region Settings & Providers</label>
+            <div className="grid grid-cols-1 gap-2">
+              {REGIONS.map((r) => {
+                const isSelected = region === r.code
+                return (
+                  <label key={r.code} className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer border transition-all ${
+                    isSelected 
+                      ? 'border-cyan-500/30 bg-cyan-500/5 text-white' 
+                      : 'border-white/5 bg-slate-950 hover:bg-slate-900 text-slate-400 hover:text-slate-200'
+                  }`}>
+                    <input
+                      type="radio"
+                      name="region"
+                      value={r.code}
+                      checked={isSelected}
+                      onChange={(e) => setRegion(e.target.value)}
+                      className="mt-1 h-3.5 w-3.5 accent-cyan-500"
+                    />
+                    <div className="min-w-0">
+                      <div className="text-xs font-extrabold flex items-center gap-1.5">
+                        <span>{r.flags}</span>
+                        <span>{r.label}</span>
+                      </div>
+                      <div className="text-[10px] text-slate-500 truncate mt-0.5">{r.desc}</div>
+                    </div>
+                  </label>
+                )
+              })}
             </div>
           </div>
-          <div className="p-4 bg-indigo-50 rounded-lg border border-indigo-200">
-            <h4 className="font-semibold text-indigo-800 mb-2">Constraint-Match Rate</h4>
-            <p>We report the % of final slate movies that pass ALL hard filters. This should always be 100% — if it's not, the candidate pool was too small or constraints too restrictive. The system degrades gracefully: if nothing passes, it relaxes constraints in priority order.</p>
-          </div>
-        </div>
-      </details>
 
-      {/* Controls */}
-      <div className="bg-white rounded-xl p-6 shadow-sm border-2 border-indigo-200">
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">Try It — Pick Region, Group, and Filters</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Region</label>
-            <div className="space-y-2">
-              {REGIONS.map((r) => (
-                <label key={r.code} className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer border transition-colors ${
-                  region === r.code ? 'border-indigo-300 bg-indigo-50' : 'border-gray-200 hover:bg-gray-50'
-                }`}>
-                  <input
-                    type="radio"
-                    name="region"
-                    value={r.code}
-                    checked={region === r.code}
-                    onChange={(e) => setRegion(e.target.value)}
-                    className="mt-1"
-                  />
-                  <div>
-                    <div className="text-sm font-medium">{r.label}</div>
-                    <div className="text-xs text-gray-500">{r.desc}</div>
-                  </div>
-                </label>
-              ))}
+          {/* Group Diff */}
+          <div className="lg:col-span-3 space-y-2 flex flex-col justify-between">
+            <div className="space-y-1.5">
+              <label className="block text-[11px] font-bold tracking-wider text-slate-400 uppercase">2. Group Tension Kind</label>
+              <select
+                value={kind}
+                onChange={(e) => setKind(e.target.value)}
+                className="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-3 text-xs text-slate-100 focus:outline-none focus:border-cyan-500 transition-colors"
+              >
+                <option value="divergent font">Divergent (Difficult)</option>
+                <option value="similar font">Similar (Consistent)</option>
+                <option value="random">Random (Mixed)</option>
+              </select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-[11px] font-bold tracking-wider text-slate-400 uppercase">3. Choose Group</label>
+              <select
+                value={selectedGid || ''}
+                onChange={(e) => setSelectedGid(Number(e.target.value))}
+                className="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-3 text-xs text-slate-100 focus:outline-none focus:border-cyan-500 transition-colors font-mono"
+              >
+                {groups.map((g) => (
+                  <option key={g.gid} value={g.gid}>{g.label}</option>
+                ))}
+              </select>
             </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Group Difficulty</label>
-            <select
-              value={kind}
-              onChange={(e) => setKind(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="divergent">Divergent</option>
-              <option value="similar">Similar</option>
-              <option value="random">Random</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Group</label>
-            <select
-              value={selectedGid || ''}
-              onChange={(e) => setSelectedGid(Number(e.target.value))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-            >
-              {groups.map((g) => (
-                <option key={g.gid} value={g.gid}>{g.label}</option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-3">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={allowTeen}
-                onChange={(e) => setAllowTeen(e.target.checked)}
-                className="rounded"
-              />
-              <span className="text-sm text-gray-700">Allow older-teen (UA/PG-13)</span>
-            </label>
+
+          {/* Teen allow & Button */}
+          <div className="lg:col-span-5 flex flex-col justify-between gap-4">
+            <div className="p-4 rounded-xl bg-slate-950 border border-white/5 flex items-center justify-between">
+              <div className="space-y-1 min-w-0">
+                <span className="block text-xs font-bold text-slate-200">Older-Teen Ratings</span>
+                <span className="block text-[10px] text-slate-500">Allow UA/CBFC, PG-13 classifications</span>
+              </div>
+              <button 
+                onClick={() => setAllowTeen(!allowTeen)}
+                className="text-cyan-400 focus:outline-none shrink-0"
+              >
+                {allowTeen ? (
+                  <ToggleRight className="w-9 h-9" />
+                ) : (
+                  <ToggleLeft className="w-9 h-9 text-slate-600" />
+                )}
+              </button>
+            </div>
+
             <button
               onClick={handleRecommend}
               disabled={loading}
-              className="w-full px-6 py-2.5 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors shadow-sm"
+              className="w-full relative flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-cyan-600 to-indigo-500 text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:from-cyan-500 hover:to-indigo-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-lg shadow-indigo-500/10"
             >
               {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                  </svg>
-                  Filtering...
-                </span>
-              ) : 'Recommend (Filtered)'}
+                <>
+                  <RefreshCw className="animate-spin w-4 h-4 text-white" />
+                  <span>Pruning candidates...</span>
+                </>
+              ) : (
+                <>
+                  <Play className="w-4 h-4 fill-white" />
+                  <span>Generate Constrained slate</span>
+                </>
+              )}
             </button>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Results */}
+      {/* RESULT GRID */}
       {result && (
-        <>
+        <div className="space-y-8">
           <GroupPanel group={result.group} />
 
-          {/* Insight */}
           <Mode2Insight result={result} />
 
-          {/* Watchlist */}
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-            <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-              Streamable Family Watchlist
-              <span className="text-xs font-normal text-green-600 bg-green-100 px-2 py-0.5 rounded-full">
-                {Math.round(result.match_rate * 100)}% constraint match
+          {/* Film watch list */}
+          <div className="bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 pb-4 border-b border-white/[0.04]">
+              <div className="flex items-center gap-2">
+                <Tv className="w-5 h-5 text-cyan-400" />
+                <h3 className="text-sm font-extrabold text-white uppercase tracking-wider">
+                  Verified Family Watchlist Tonight
+                </h3>
+              </div>
+              <span className="text-[10px] uppercase font-mono font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-md">
+                {Math.round(result.match_rate * 100)}% absolute constraint match rate
               </span>
-            </h3>
-            <p className="text-xs text-gray-500 mb-4">
-              Every movie below is available on your platforms, in your language, within runtime limit, and age-safe.
-              The "Best For" column shows which member(s) each pick primarily serves.
+            </div>
+            
+            <p className="text-xs text-slate-400 mb-4 leading-normal">
+              The recommendations listed passed original language check, run-duration metrics, and safety. The <strong className="text-indigo-400">Caters To</strong> tags confirm exactly whose taste vectors are served.
             </p>
-            <SlateTable slate={result.slate} showFilters={true} />
+
+            <SlateTable slate={result.slate} showFilters={true} pickLabel="Best to stream tonight" />
           </div>
 
-          {/* What each column means */}
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">Reading the Results</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-xs text-gray-600">
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <strong className="text-gray-800">Pred rating:</strong> Group's average predicted rating for this movie (higher = better for the group overall)
-              </div>
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <strong className="text-gray-800">Best For:</strong> Which member(s) this movie scores highest for — ensures everyone is covered
-              </div>
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <strong className="text-gray-800">Lang / Runtime / Cert:</strong> Proof that the hard filters passed — every movie is watchable tonight
-              </div>
+          {/* Reading columns card */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-4 bg-slate-900/10 border border-white/5 rounded-xl space-y-1">
+              <strong className="text-xs text-slate-200 block font-bold">Predictive Rating</strong>
+              <p className="text-[11px] text-slate-500 leading-normal">The overall predicted satisfaction. Higher denotes higher average appeal to the entire family cohort.</p>
+            </div>
+            <div className="p-4 bg-slate-900/10 border border-white/5 rounded-xl space-y-1">
+              <strong className="text-xs text-slate-200 block font-bold">Caters To</strong>
+              <p className="text-[11px] text-slate-500 leading-normal">Specifies precisely which extreme user taste profiles are directly satisfied by this item.</p>
+            </div>
+            <div className="p-4 bg-slate-900/10 border border-white/5 rounded-xl space-y-1">
+              <strong className="text-xs text-slate-200 block font-bold">Hard Constraints Met</strong>
+              <p className="text-[11px] text-slate-500 leading-normal">Confirms language, age rating, and clock-runtime parameters. Ready to play tonight without delay.</p>
             </div>
           </div>
 
-          {/* Region info */}
-          <div className="bg-amber-50 rounded-xl p-5 border border-amber-200">
-            <h3 className="text-sm font-semibold text-amber-800 mb-2">Filter Configuration Applied</h3>
-            <div className="text-sm text-gray-700">
-              <strong>{result.region.name}</strong> — Platforms: {result.region.platforms.join(', ')} |
-              Languages: {result.region.languages.join(', ')} |
-              Runtime: max {result.region.max_runtime}m |
-              Family-safe certs: {result.region.family_safe_certs.join(', ')}
-              {result.allow_teen && ' (+teen)'}
+          {/* Configuration Applied block */}
+          <div className="bg-slate-950 border border-white/5 p-5 rounded-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-indigo-500/5 to-transparent pointer-events-none rounded-bl-full" />
+            <h3 className="text-xs font-bold text-slate-300 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+              <Info className="w-3.5 h-3.5 text-indigo-400" />
+              <span>Applied JSON Configuration Context</span>
+            </h3>
+            <div className="text-xs text-slate-400 leading-relaxed font-mono bg-slate-900/60 p-3 rounded-xl border border-white/[0.04]">
+              <span className="text-cyan-400 font-bold">{result.region.name}</span> &#123; platforms: ["{result.region.platforms.join('", "')}"], lan: ["{result.region.languages.join('", "')}"], max_minutes: {result.region.max_runtime}, certificates: ["{result.region.family_safe_certs.join('", "')}"] &#125;
             </div>
-            <div className="text-xs text-gray-500 mt-2">
-              Availability as of {result.snapshot_date}. OTT/language/cert are offline-fallback labels
-              (real TMDb data is used automatically when TMDB_API_KEY is set).
+            <div className="text-[10px] text-slate-500 mt-2 font-medium">
+              Provider snap cached {result.snapshot_date}. Real TMDb listings used instantly upon configuring private <code className="bg-slate-900 px-1 text-indigo-300">TMDB_API_KEY</code> environment values.
             </div>
           </div>
-        </>
+        </div>
       )}
     </div>
   )

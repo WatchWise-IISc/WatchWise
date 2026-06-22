@@ -121,6 +121,12 @@ class DemoEngine:
                 "title": r["title"],
                 "genres": r["genres"].replace("|", ", "),
                 "group_pred": round(float(pred[:, j].mean()), 2),
+                # Taste-fit satisfaction (percentile rank in each member's own
+                # distribution) — the fairness signal the reranker optimises.
+                # min = worst-off member's fit for THIS movie (the fair-compromise
+                # signal); mean = average fit. The "ultimate fit" pick ranks on min.
+                "min_member_sat": round(float(sat[:, j].min()), 3),
+                "mean_member_sat": round(float(sat[:, j].mean()), 3),
                 "best_for": served if served else [],
             }
             if region_code:

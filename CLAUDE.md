@@ -44,7 +44,13 @@ python scripts/07_phase_compare.py       # optional: Phase 1 vs Phase 2 once bot
 # Tests (run after the pipeline has produced cached artifacts)
 python tests/test_smoke.py               # or: python -m pytest tests/ -q   (6 invariant tests)
 
-# Demo (offline — reads cached catalog + saved metrics, never calls APIs)
+# App — React + FastAPI (the primary UI; offline, reads cached artifacts only)
+./app/start.sh                           # FastAPI :8000 + Vite dev :5173; phase2 by default
+./app/start.sh --phase phase1            # small dataset
+./scripts/fetch_cache.sh phase2          # pull the ~416 MB phase2 cache from the GitHub Release
+uvicorn app.api.main:app --reload        # backend only (frontend dev: cd app/frontend && npm run dev)
+
+# Demo (legacy — same 3 modes, Gradio; offline)
 python app/demo.py                       # Gradio, http://localhost:7860
 ```
 
@@ -80,6 +86,28 @@ MovieLens ratings + links.csv
 `pipeline.METHODS` are the five ablations: `avg_baseline`, `nn_greedy`, `diffusion_greedy`,
 `nn_rl`, `diffusion_rl`. Comparing generators (`nn_*` vs `diffusion_*`) holds the reranker fixed;
 comparing rerankers (`*_greedy` vs `*_rl`) holds the pool fixed.
+
+## The app (React + FastAPI — thin layer over the pipeline)
+
+The UI never re-implements recommendation logic; it loads the cached artifacts once and calls
+`Recommender.recommend`. Two halves talk over HTTP; Vite proxies `/api` → `:8000` (`vite.config.js`),
+so frontend code calls bare `/api/...` (`app/frontend/src/api.js`) and CORS is open only to localhost.
+
+- **`app/api/engine.py::DemoEngine`** is the single source of app behaviour. Its `__init__` loads every
+  cached artifact (`mf.npz`, `text_embeddings.npy`, `catalog.parquet`, `train_ratings.parquet`,
+  `diffusion.pt`, `rl_policy.pt`, `groups.json`) for one phase and builds one `Recommender`. Methods
+  return **plain JSON-able dicts** (not DataFrames/Markdown) — `run_mode1_api` / `run_mode2_api` /
+  `run_mode3_api` mirror the three demo modes. **`app/demo.py` (Gradio) is the legacy twin of the same
+  engine logic** — keep the two in sync when changing demo behaviour.
+- **`app/api/main.py`** is just endpoint plumbing: a `lifespan` hook builds the `DemoEngine` at startup
+  from `WATCHWISE_PHASE` (default `phase2`; note `DemoEngine`'s own default is `phase1`), then routes
+  `/api/groups`, `/api/group/{gid}/members`, `/api/mode{1,2,3}/...`, `/api/results/summary`.
+- **`"Best for" uses taste-fit, not raw rating** (`_slate_data` → `member_satisfaction`) — same reason
+  as the pipeline gotcha below; raw MF rating would credit whoever likes the broadly-popular pick.
+- **Cache is fetched, not committed.** `data/cache/` is gitignored (binaries too large for git), so
+  `start.sh` runs `scripts/fetch_cache.sh`, which downloads `ml-25m-cache.tar.gz` from the GitHub
+  Release `phase2-cache` (repo `WATCHWISE_REPO`, default `kvamsi-iisc/WatchWise`) on first run. Only
+  phase2 is published; phase1 regenerates via the pipeline. App startup fails without this cache.
 
 ## Invariants that protect the result (do not break these)
 

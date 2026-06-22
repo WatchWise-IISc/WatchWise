@@ -28,8 +28,8 @@ if [ ! -d "app/frontend/node_modules" ]; then
   cd app/frontend && npm install && cd ../..
 fi
 
-echo "[start] Starting FastAPI backend on :8000 ..."
-uvicorn app.api.main:app --host 0.0.0.0 --port 8000 --reload &
+echo "[start] Starting FastAPI backend on :18790 ..."
+uvicorn app.api.main:app --host 0.0.0.0 --port 18790 --reload &
 BACKEND_PID=$!
 
 echo "[start] Starting React frontend on :5173 ..."
@@ -39,8 +39,8 @@ cd ../..
 
 echo ""
 echo "=== Ready ==="
-echo "  Frontend: http://localhost:5173"
-echo "  Backend:  http://localhost:8000/docs"
+echo "  Frontend: http://localhost:18791"
+echo "  Backend:  http://localhost:18790/docs"
 echo ""
 echo "Press Ctrl+C to stop both."
 

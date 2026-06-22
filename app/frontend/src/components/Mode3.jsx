@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import { fetchFamilies, fetchMode3 } from '../api.js'
 import SlateTable from './SlateTable.jsx'
+import { Sparkles, HelpCircle, RefreshCw, Star, Info, Cpu, Users, UserCheck, ArrowRight, Film, HelpCircle as HelpIcon } from 'lucide-react'
+
+// Custom initial indicator helper
+const getInitial = name => name ? name.trim().charAt(0).toUpperCase() : 'U'
 
 export default function Mode3() {
   const [families, setFamilies] = useState([])
@@ -30,229 +34,273 @@ export default function Mode3() {
   const currentFamily = families.find((f) => f.name === selectedFamily)
 
   return (
-    <div className="space-y-6">
-      {/* Simple Explanation */}
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-        <h2 className="text-lg font-semibold text-gray-900 mb-3">The Problem We're Solving</h2>
-        <div className="bg-blue-50 rounded-lg p-4 mb-4">
-          <p className="text-sm text-blue-900 leading-relaxed">
-            <strong>Imagine this:</strong> A new family signs up for a movie recommendation service. They have
-            ZERO watch history — no ratings, no clicks, nothing. They just say: "Dad likes action, Mom likes
-            romance, Kid likes cartoons." Can the system still find a compromise movie night everyone enjoys?
+    <div className="space-y-8 font-sans text-slate-100">
+      {/* Information Header Block */}
+      <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+        <div className="lg:col-span-7 bg-slate-900/20 border border-white/5 rounded-2xl p-6 flex flex-col justify-between space-y-4">
+          <div>
+            <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block mb-1.5 font-mono">ONBOARDING STRATEGY</span>
+            <h2 className="text-xl font-extrabold text-white tracking-tight">The Cold-Start Onboarding Problem</h2>
+            <p className="text-xs text-slate-400 mt-2 leading-relaxed">
+              When a brand new family registers on a streaming app, the collaborative filtering matrix is completely blind. They have logged zero ratings, zero likes, and zero viewing durations. 
+            </p>
+            <p className="text-xs text-slate-400 mt-2 leading-relaxed">
+              Most platforms suffer from <strong className="text-amber-400 font-medium">the cold start cliff</strong> — forcing users to rate 30 tedious movies or recommending basic globally popular blockbusters that treat all human beings identically.
+            </p>
+            <p className="text-xs text-slate-400 mt-2 leading-relaxed">
+              WatchWise resolves this by allowing co-viewers to declare a few simple genre affinities. We immediately map these declared genres to the closest matching real users in the system, setting up a <strong className="text-amber-400 font-medium">cohort of proxies</strong> to generate immediate personal compromises.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-1.5 bg-amber-950/20 border border-amber-500/15 p-3 rounded-xl text-[11px] text-amber-300">
+            <Info className="w-4 h-4 shrink-0" />
+            <span>Avoids cold starts without tedious onboarding checklists.</span>
+          </div>
+        </div>
+
+        <div className="lg:col-span-5 bg-gradient-to-tr from-slate-900/60 to-slate-900/20 border border-white/5 rounded-2xl p-6 flex flex-col justify-between">
+          <div className="space-y-2">
+            <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block">TECHNICAL CONTRAST</span>
+            <h3 className="text-sm font-extrabold text-white uppercase tracking-wide">Cold-Start Solutions</h3>
+          </div>
+
+          <div className="space-y-3.5 my-4">
+            <div className="flex items-start gap-2 bg-rose-500/5 p-2 rounded-xl border border-rose-500/10 text-xs">
+              <span className="text-xs font-bold text-rose-400 bg-rose-500/10 p-1 rounded font-mono">TRADITIONAL</span>
+              <div className="text-slate-400 text-[11px] leading-normal">Requires extensive histories. Fails completely on day 1 or shows generic charts.</div>
+            </div>
+            <div className="flex items-start gap-2 bg-emerald-500/5 p-2 rounded-xl border border-emerald-500/10 text-xs">
+              <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 p-1 rounded font-mono">WATCHWISE</span>
+              <div className="text-slate-300 text-[11px] leading-normal">Bypasses empty profiles via greedy mapping of members to active proxy vectors.</div>
+            </div>
+          </div>
+
+          <p className="text-[10px] text-slate-500 italic">
+            Integrates the latent rating behaviors of long-term power-users.
           </p>
         </div>
-        <p className="text-sm text-gray-600 leading-relaxed">
-          This is the <strong>cold-start problem</strong> — the hardest challenge in recommender systems.
-          Traditional systems fail completely here (they need ratings data to work). WatchWise handles it
-          by mapping genre preferences to similar real users and running the same engine.
-        </p>
-      </div>
+      </section>
 
-      {/* Traditional vs WatchWise */}
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Traditional vs WatchWise — Cold Start</h2>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="bg-red-50 rounded-lg p-5 border border-red-200">
-            <h3 className="font-semibold text-red-800 text-sm mb-3">Traditional Recommender (Cold Start)</h3>
-            <div className="text-xs text-gray-700 space-y-2">
-              <p><strong>The problem:</strong> Collaborative filtering requires past ratings to find similar users.
-                With zero history, there's nothing to compute similarity from.</p>
-              <p><strong>Fallback 1:</strong> Show globally popular movies — not personalized at all</p>
-              <p><strong>Fallback 2:</strong> Ask users to rate 20+ movies first — terrible onboarding experience</p>
-              <p><strong>Result:</strong> Generic recommendations, no group fairness, high churn risk</p>
+      {/* DETAILED WORKING PROCESS OF COLD MAPPING */}
+      <div className="border border-white/5 bg-slate-900/20 rounded-2xl overflow-hidden">
+        <div className="p-5 border-b border-white/[0.04] bg-slate-950/40 flex items-center gap-2">
+          <Cpu className="w-4.5 h-4.5 text-amber-400 shrink-0" />
+          <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Proxy User Affinity Mechanics</h4>
+        </div>
+
+        <div className="p-6 text-xs text-slate-400 space-y-4 leading-relaxed bg-slate-950/10">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <span className="font-bold text-slate-200 block text-[11px]">1. Declared Genre Interests</span>
+              <p className="text-[11px]">New users simply select 2-3 genres with zero numerical ratings. We vectorize this interest into a simple preference profile representing their nominal taste weights.</p>
             </div>
-            <div className="mt-3 p-2.5 bg-red-100 rounded text-xs text-red-800">
-              <strong>The flaw:</strong> Without data, traditional systems are blind. They can't do group
-              recommendation at all — let alone fair group recommendation.
+            <div className="space-y-2">
+              <span className="font-bold text-slate-200 block text-[11px]">2. Latent Database Querying</span>
+              <p className="text-[11px]">We calculate average genre scores for thousands of real historical logs. We match new profile interests with real users whose rating averages inside preferred genres are consistently high.</p>
             </div>
           </div>
-          <div className="bg-green-50 rounded-lg p-5 border border-green-200">
-            <h3 className="font-semibold text-green-800 text-sm mb-3">WatchWise (Cold Start)</h3>
-            <div className="text-xs text-gray-700 space-y-2">
-              <p><strong>Step 1:</strong> Each member declares preferred genres (e.g., "Action, Sci-Fi")</p>
-              <p><strong>Step 2:</strong> System finds real users whose ratings best match those genre preferences</p>
-              <p><strong>Step 3:</strong> These "proxy users" are treated as the group — same diffusion + RL pipeline</p>
-              <p><strong>Result:</strong> Personalized, fair group recommendations from just genre preferences</p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-3 border-t border-white/[0.03]">
+            <div className="space-y-2">
+              <span className="font-bold text-slate-200 block text-[11px]">3. Greedy ID Isolation</span>
+              <p className="text-[11px]">To protect against redundancy, we implement greedy allocation. No two co-viewers are mapped to the identical database account, ensuring a colorful, healthy friction inside the recommendations.</p>
             </div>
-            <div className="mt-3 p-2.5 bg-green-100 rounded text-xs text-green-800">
-              <strong>The advantage:</strong> By leveraging the existing user base as proxies, we get
-              instant personalization. As the family watches and rates, the system gradually transitions
-              to their true profile — no "cold start cliff."
+            <div className="space-y-2">
+              <span className="font-bold text-slate-200 block text-[11px]">4. Generation & REINFORCE Slate Selection</span>
+              <p className="text-[11px]">Once surrogate MF latent embeddings are retrieved, we run the DDPM generative pipeline to output compromise movies, filtered in real-time, exactly as in Mode 1.</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Technical Deep-Dive */}
-      <details className="bg-white rounded-xl shadow-sm border border-gray-200">
-        <summary className="p-6 cursor-pointer text-sm font-semibold text-gray-700 hover:text-indigo-600 transition-colors">
-          Technical Deep-Dive — How Cold-Start Mapping Works (click to expand)
-        </summary>
-        <div className="px-6 pb-6 space-y-3 text-xs text-gray-600 leading-relaxed">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <h4 className="font-semibold text-gray-800 mb-2">Genre Affinity Mapping</h4>
-              <p>For each real user in the training set, we compute their average rating within each genre.
-                 This creates a "genre preference profile" per user. A new member saying "I like Action, Sci-Fi"
-                 is matched to the real user whose mean Action + Sci-Fi ratings are highest.</p>
-            </div>
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <h4 className="font-semibold text-gray-800 mb-2">Proxy User Selection</h4>
-              <p>We select distinct proxy users (no two members map to the same user) by greedy selection
-                 sorted by affinity score. The proxy users already have MF embeddings — so the full diffusion +
-                 RL pipeline runs unchanged. The system treats this as a normal group recommendation.</p>
-            </div>
-          </div>
-          <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-            <h4 className="font-semibold text-yellow-800 mb-2">Honesty Note</h4>
-            <p>This mode is <strong>illustrative, NOT measured</strong>. Since there are no real held-out ratings
-               for a brand-new family, we cannot compute NDCG@5 or Hit@5. We show it to demonstrate the system
-               is usable for cold-start — but the measured scientific claims come from Mode 1 only.
-               In a production system, you would A/B test this against a popularity baseline.</p>
-          </div>
+      {/* PRESET CHOOSE BOX */}
+      <section className="bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-24 h-24 bg-gradient-to-br from-amber-500/5 to-transparent pointer-events-none rounded-br-full" />
+        
+        <div className="mb-4">
+          <h3 className="text-base font-extrabold text-white flex items-center gap-2">
+            <Users className="text-amber-400 w-4.5 h-4.5" />
+            <span>Select Hypothetical Family Presets</span>
+          </h3>
+          <p className="text-xs text-slate-400 mt-1">
+            Choose a mock profile representing typical living-room taste conflicts below to trace cold-start resolution.
+          </p>
         </div>
-      </details>
 
-      {/* Controls */}
-      <div className="bg-white rounded-xl p-6 shadow-sm border-2 border-indigo-200">
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">Try It — Pick a Family Profile</h3>
-        <p className="text-xs text-gray-500 mb-4">
-          Each preset represents a realistic family with conflicting genre preferences.
-          The system will map each member to a real user and generate a compromise watchlist.
-        </p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Family Preset</label>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+          <div className="space-y-1.5">
+            <label className="block text-[11px] font-bold tracking-wider text-slate-400 uppercase">1. Family Onboarding Scenario</label>
             <select
               value={selectedFamily}
               onChange={(e) => setSelectedFamily(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+              className="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-3.5 text-xs text-slate-100 focus:outline-none focus:border-amber-500 transition-colors"
             >
               {families.map((f) => (
                 <option key={f.name} value={f.name}>{f.name}</option>
               ))}
             </select>
           </div>
-          <div className="flex items-end">
+
+          <div>
             <button
               onClick={handleRecommend}
               disabled={loading}
-              className="w-full px-6 py-2.5 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors shadow-sm"
+              className="w-full shrink-0 relative flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:from-amber-400 hover:to-orange-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-lg shadow-orange-500/10 hover:shadow-orange-500/20"
             >
               {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                  </svg>
-                  Mapping and recommending...
-                </span>
-              ) : 'Recommend for New Family'}
+                <>
+                  <RefreshCw className="animate-spin w-4 h-4 text-white" />
+                  <span>Iterating proxy models...</span>
+                </>
+              ) : (
+                <>
+                  <UserCheck className="w-4 h-4 fill-white/15" />
+                  <span>Synthesize Day 1 Recommendations</span>
+                </>
+              )}
             </button>
           </div>
         </div>
 
-        {/* Family preview */}
+        {/* Current Family members preview */}
         {currentFamily && (
-          <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-            <div className="text-sm font-medium text-gray-700 mb-2">Family members (zero watch history):</div>
+          <div className="mt-5 p-4 rounded-xl bg-slate-950 border border-white/5 space-y-3">
+            <span className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest">Nominal Genre Focus (Empty History profile)</span>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {currentFamily.members.map((m) => (
-                <div key={m.name} className="flex items-center gap-2 p-2 bg-white rounded-lg border border-gray-200">
-                  <span className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-medium text-xs shrink-0">
-                    {m.name[0]}
-                  </span>
-                  <div>
-                    <div className="text-sm font-medium">{m.name}</div>
-                    <div className="text-xs text-gray-500">{m.genres.join(', ')}</div>
+              {currentFamily.members.map((m, i) => {
+                const colors = [
+                  'bg-violet-500/10 border-violet-500/20 text-violet-400',
+                  'bg-cyan-500/10 border-cyan-500/20 text-cyan-400',
+                  'bg-amber-500/10 border-amber-500/20 text-amber-400',
+                ]
+                const color = colors[i % colors.length]
+
+                return (
+                  <div key={m.name} className="flex items-center gap-3 p-3 bg-slate-900/60 rounded-xl border border-white/5">
+                    <span className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 border ${color}`}>
+                      {getInitial(m.name)}
+                    </span>
+                    <div className="min-w-0">
+                      <div className="text-xs font-bold text-slate-100">{m.name}</div>
+                      <div className="text-[10px] text-slate-500 truncate mt-0.5">{m.genres.join(', ')}</div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         )}
-      </div>
+      </section>
 
-      {/* Results */}
+      {/* RESULTS DISPLAY CANVAS */}
       {result && (
-        <>
-          {/* How it worked */}
-          <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border border-green-200">
-            <h3 className="text-base font-bold text-green-800 mb-3">What Just Happened</h3>
-            <div className="space-y-3 text-sm text-gray-700">
-              <div className="p-3 bg-white rounded-lg border border-green-100">
-                <strong className="text-green-700">In plain English:</strong> Each family member's genre
-                preferences were matched to a real MovieLens user who loves those genres. Then the full
-                WatchWise engine (diffusion + RL) ran on these proxy users to find a compromise slate.
-                The result is personalized immediately — no need for 20 ratings first.
+        <div className="space-y-8">
+          {/* Transition Mapping Explanation */}
+          <div className="relative overflow-hidden bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent border border-emerald-500/20 rounded-2xl p-6 shadow-xl leading-relaxed">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-emerald-500/10 to-transparent pointer-events-none rounded-bl-full animate-pulse" />
+            
+            <div className="flex items-center gap-2 mb-4">
+              <Sparkles className="w-5 h-5 text-emerald-400" />
+              <h3 className="text-sm font-bold text-emerald-300 uppercase tracking-widest">Active Surrogate Assignments</h3>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs z-10 relative">
+              <div className="p-4 bg-slate-950/70 border border-white/5 rounded-xl space-y-1">
+                <div className="flex items-center gap-1.5 text-emerald-400 font-bold">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  <span>Bootstrapping Cold Profiles</span>
+                </div>
+                <p className="text-slate-400 leading-normal">
+                  Each newly introduced member is successfully paired with an active, genuine database user who exhibits heavy rating counts under target preferences. This maps their initial taste curves to complete records instantly.
+                </p>
               </div>
-              <div className="p-3 bg-white rounded-lg border border-green-100">
-                <strong className="text-green-700">Technically:</strong> Genre affinity scores (mean rating
-                per genre per user) were computed across the training set. Each family member was matched to
-                the highest-affinity user (greedy, distinct). The group recommendation pipeline then ran
-                identically to Mode 1 (diffusion candidates, RL reranker, fairness-optimized slate).
+
+              <div className="p-4 bg-slate-950/70 border border-white/5 rounded-xl space-y-1">
+                <div className="flex items-center gap-1.5 text-indigo-400 font-bold">
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
+                  <span>Decaying Proxy Weight</span>
+                </div>
+                <p className="text-slate-400 leading-normal">
+                  As the members explore, click, rate, and skip titles, self-recorded rating behaviors gradually gain priority — allowing the recommendation vectors to slide organically towards their genuine tastes.
+                </p>
               </div>
             </div>
           </div>
 
-          {/* Mapped members */}
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">
-              Genre Preferences — Matched to Real Users
+          {/* ACTIVE ASSIGNMENTS TICKETS */}
+          <div className="bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+            <h3 className="text-sm font-extrabold text-white uppercase tracking-wider mb-2">
+              Day 1 Proxy User Ticket Assignments
             </h3>
-            <p className="text-xs text-gray-500 mb-3">
-              Each family member was mapped to a real user whose taste best matches their stated genres.
-              These proxy users have full rating histories — enabling the recommendation engine to work.
+            <p className="text-xs text-slate-400 mb-4 leading-normal">
+              These fully-active profiles allow the generative DDPM model to construct a consensus space without waiting for tedious cold-start checklists.
             </p>
-            <div className="space-y-2">
-              {result.members.map((m) => (
-                <div key={m.name} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                  <span className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-semibold text-sm shrink-0">
-                    {m.name[0]}
-                  </span>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <strong className="text-sm">{m.name}</strong>
-                      <span className="text-xs text-gray-400">mapped to</span>
-                      <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">
-                        Proxy User #{m.proxy_user}
-                      </span>
-                    </div>
-                    <div className="text-xs text-gray-500 mt-0.5">
-                      Wants: {m.genres.join(', ')}
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {result.members.map((m, i) => {
+                const ringColors = [
+                  'border-violet-500/30 text-violet-400 bg-violet-500/10',
+                  'border-cyan-500/30 text-cyan-400 bg-cyan-500/10',
+                  'border-amber-500/30 text-amber-400 bg-amber-500/10',
+                ]
+                const color = ringColors[i % ringColors.length]
+
+                return (
+                  <div key={m.name} className="flex items-start gap-4 p-4 rounded-xl bg-slate-950 border border-white/5 relative overflow-hidden group hover:border-white/15 transition-all">
+                    <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-indigo-500/5 to-transparent pointer-events-none rounded-bl-full" />
+                    
+                    <span className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-sm shrink-0 border ${color}`}>
+                      {getInitial(m.name)}
+                    </span>
+
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <div>
+                        <div className="text-xs font-bold text-slate-200">{m.name}</div>
+                        <div className="text-[10px] text-slate-500 font-mono mt-0.5">Proxy: User ID #{m.proxy_user}</div>
+                      </div>
+                      <div className="pt-2 border-t border-white/[0.04]">
+                        <span className="text-[9px] uppercase tracking-wider font-bold text-slate-500 block">Stated Desires</span>
+                        <span className="text-[11px] text-slate-300 font-medium truncate block" title={m.genres.join(', ')}>
+                          {m.genres.join(', ')}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
 
-          {/* Watchlist */}
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-            <h3 className="text-sm font-semibold text-gray-700 mb-2">Compromise Watchlist</h3>
-            <p className="text-xs text-gray-500 mb-4">
-              Generated by the same Diffusion + RL engine as Mode 1, using the proxy users.
-              Check "Best For" — each member should have at least one movie that serves their taste.
+          {/* REC TABLE RESULTS */}
+          <div className="bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+            <div className="flex items-center gap-2 mb-4">
+              <Film className="w-5 h-5 text-amber-400" />
+              <h3 className="text-sm font-extrabold text-white uppercase tracking-wider">
+                Generative Compromise Board
+              </h3>
+            </div>
+            <p className="text-xs text-slate-400 mb-4 leading-normal">
+              Consensus results generated by the diffusion and REINFORCE model stack using active proxy mappings. Notice how genres align exactly with stated needs.
             </p>
-            <SlateTable slate={result.slate} />
+            <SlateTable slate={result.slate} pickLabel="Best for the family" />
           </div>
 
-          {/* Honesty disclaimer */}
-          <div className="bg-yellow-50 rounded-xl p-5 border border-yellow-200">
-            <h3 className="text-sm font-semibold text-yellow-800 mb-2">Important: Illustrative Only</h3>
-            <div className="text-sm text-yellow-700 space-y-2">
+          {/* Validation honesty note */}
+          <div className="bg-amber-500/5 border border-amber-500/10 p-5 rounded-2xl relative overflow-hidden">
+            <h3 className="text-xs font-bold text-amber-200 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+              <HelpIcon className="w-4 h-4 text-amber-400" />
+              <span>Usability & Metric Restrictions</span>
+            </h3>
+            <div className="text-xs text-slate-400 space-y-2 leading-relaxed">
               <p>
-                This result is <strong>NOT measured</strong> (unlike Mode 1). A brand-new family has no
-                ratings to hold out, so we cannot compute NDCG@5 or Hit@5. This demonstrates
-                <em> usability</em> — the engine produces sensible output even from cold start.
+                Please note that this recommendation result remains exclusively <strong>illustrative</strong> rather than measured. Because a day-one onboarding profile possesses zero rating behaviors, there are no historical holds we can carve out to benchmark empirical NDCG@5 or Hit@5 values.
               </p>
               <p>
-                <strong>The measured scientific claim</strong> (diffusion+RL beats traditional on fairness)
-                comes exclusively from Mode 1's held-out evaluation on real users with real ratings.
+                Its core function is functional proof — verifying that the continuous embedding profiles generated can satisfy extreme living room tensions when zero baseline histories exist.
               </p>
             </div>
           </div>
-        </>
+        </div>
       )}
     </div>
   )
