@@ -2,7 +2,7 @@
 
 Downloads MovieLens, builds the enriched catalog (TMDb-or-fallback), computes
 frozen text embeddings, and caches everything to ``data/cache/<dataset>/`` so no
-later stage (or the demo) ever touches the network.
+later stage (or the app) ever touches the network.
 """
 from __future__ import annotations
 
@@ -49,15 +49,13 @@ def main() -> None:
         {"dataset": cfg.dataset, "n_users": ml.n_users, "n_movies": ml.n_movies,
          "n_ratings": int(len(ml.ratings)), "text_method": method,
          "text_dim": int(text_emb.shape[1]),
-         "enrichment_sources": catalog["enrichment_source"].value_counts().to_dict(),
-         "language_counts": catalog["original_language"].value_counts().head(12).to_dict()},
+         "enrichment_sources": catalog["enrichment_source"].value_counts().to_dict()},
         cfg.cache_dir / "data_stats.json",
     )
 
     banner("STAGE 1 COMPLETE")
     print(f"  users={ml.n_users:,} movies={ml.n_movies:,} ratings={len(ml.ratings):,}")
     print(f"  text method: {method}  (dim={text_emb.shape[1]})")
-    print(f"  languages: {catalog['original_language'].value_counts().head(6).to_dict()}")
     print(f"  enrichment: {catalog['enrichment_source'].value_counts().to_dict()}")
     print(f"  cached to: {cfg.cache_dir}")
 

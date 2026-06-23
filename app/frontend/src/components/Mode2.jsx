@@ -2,30 +2,23 @@ import React, { useState, useEffect } from 'react'
 import { fetchGroups, fetchMode2 } from '../api.js'
 import GroupPanel from './GroupPanel.jsx'
 import SlateTable from './SlateTable.jsx'
-import { Sparkles, CheckCircle, RefreshCw, Tv, Info, ToggleLeft, ToggleRight, Filter, Globe, Play } from 'lucide-react'
+import { Sparkles, CheckCircle, RefreshCw, Tv, Info, ToggleLeft, ToggleRight, Filter, Play } from 'lucide-react'
 
-const REGIONS = [
-  {
-    code: 'IN',
-    label: 'India (IN)',
-    desc: 'Netflix, Hotstar, Prime, Zee5, SonyLIV',
-    flags: '🇮🇳',
-    providers: ['Netflix', 'Disney+ Hotstar', 'Amazon Prime Video', 'Zee5', 'SonyLIV'],
-  },
-  {
-    code: 'US',
-    label: 'United States (US)',
-    desc: 'Netflix, Disney+, Hulu, Prime, Max',
-    flags: '🇺🇸',
-    providers: ['Netflix', 'Disney+', 'Hulu', 'Amazon Prime Video', 'Max'],
-  },
+const OTT_PROVIDERS = [
+  'Netflix',
+  'Amazon Prime Video',
+  'Disney+ / Hotstar',
+  'Zee5',
+  'SonyLIV',
+  'Hulu',
+  'Max',
 ]
 
 function Mode2Insight({ result }) {
   const slate = result?.watchwise_slate || result?.slate || []
   if (!result || slate.length === 0) return null
 
-  const selectedProviders = result.selected_providers || result.region?.platforms || []
+  const selectedProviders = result.selected_providers || OTT_PROVIDERS
   const genreSet = new Set(slate.flatMap(m => m.genres.split(', ')))
 
   return (
@@ -82,16 +75,14 @@ function Mode2Insight({ result }) {
 }
 
 export default function Mode2() {
-  const [region, setRegion] = useState('IN')
   const [kind, setKind] = useState('random')
   const [groups, setGroups] = useState([])
   const [selectedGid, setSelectedGid] = useState(null)
   const [allowTeen, setAllowTeen] = useState(true)
-  const [selectedProviders, setSelectedProviders] = useState(REGIONS[0].providers)
+  const [selectedProviders, setSelectedProviders] = useState(OTT_PROVIDERS)
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
   const [showFiltersDeepDive, setShowFiltersDeepDive] = useState(false)
-  const currentRegion = REGIONS.find((r) => r.code === region) || REGIONS[0]
   const canRun = Boolean(selectedGid) && selectedProviders.length > 0
 
   useEffect(() => {
@@ -100,11 +91,6 @@ export default function Mode2() {
       if (data.groups.length > 0) setSelectedGid(data.groups[0].gid)
     })
   }, [kind])
-
-  useEffect(() => {
-    setSelectedProviders(currentRegion.providers)
-    setResult(null)
-  }, [region])
 
   const toggleProvider = (provider) => {
     setResult(null)
@@ -121,7 +107,7 @@ export default function Mode2() {
     setLoading(true)
     setResult(null)
     try {
-      const data = await fetchMode2(selectedGid, region, allowTeen, selectedProviders)
+      const data = await fetchMode2(selectedGid, allowTeen, selectedProviders)
       setResult(data)
     } finally {
       setLoading(false)
@@ -144,7 +130,7 @@ export default function Mode2() {
               In reality, a wonderful movie recommendation is useless if you don't subscribe to the streaming service, or if the film runs 3 hours on a weeknight, or has certifications entirely unsafe for the youngsters in the living room.
             </p>
             <p className="text-xs text-slate-400 mt-2 leading-relaxed">
-              WatchWise Mode 2 handles these factors head-on by feeding generated candidate spaces through complex real-world filters: <strong className="text-cyan-400 font-medium">localized OTT provider availability</strong>, <strong className="text-cyan-400 font-medium">certification brackets</strong>, and <strong className="text-cyan-400 font-medium">runtime strictness</strong>.
+              WatchWise Mode 2 handles these factors head-on by feeding generated candidate spaces through real-world filters: <strong className="text-cyan-400 font-medium">OTT subscription availability</strong>, <strong className="text-cyan-400 font-medium">age-safety bands</strong>, and <strong className="text-cyan-400 font-medium">runtime strictness</strong>.
             </p>
           </div>
 
@@ -172,7 +158,7 @@ export default function Mode2() {
           </div>
 
           <p className="text-[10px] text-slate-500 italic block mt-1">
-            Leverages TMDB real-time localized caches to map stream paths dynamically.
+            Uses TMDb provider metadata to map stream paths against the services selected below.
           </p>
         </div>
       </section>
@@ -198,10 +184,10 @@ export default function Mode2() {
               <div className="p-4 bg-slate-900/40 border border-white/5 rounded-xl space-y-2">
                 <div className="font-bold text-slate-200 uppercase tracking-widest text-[10px] text-cyan-400 pb-1 border-b border-white/[0.04]">Aggressive Constraints Imposed</div>
                 <ul className="space-y-1 list-disc list-inside text-slate-300 text-[11px]">
-                  <li><strong>Subscribed OTT:</strong> Retains only movies streaming in Region on user services (via TMDb API)</li>
+                  <li><strong>Subscribed OTT:</strong> Retains only movies available on selected services</li>
                   <li><strong>Provider intersection:</strong> Keeps movies found on at least one selected OTT subscription</li>
                   <li><strong>Strict limit:</strong> Runtime must remain under max_runtime_min (e.g. 150m)</li>
-                  <li><strong>Family Rating:</strong> Must match CBFC (U/UA) or MPAA (G/PG) ratings</li>
+                  <li><strong>Age safety:</strong> Must fall inside family-safe or older-teen safety bands</li>
                 </ul>
               </div>
               <div className="p-4 bg-slate-900/40 border border-white/5 rounded-xl space-y-2">
@@ -222,55 +208,27 @@ export default function Mode2() {
         
         <div className="mb-4">
           <h3 className="text-base font-extrabold text-white flex items-center gap-2">
-            <Globe className="text-cyan-400 w-4.5 h-4.5" />
+            <Tv className="text-cyan-400 w-4.5 h-4.5" />
             <span>Interactive Constraint Matrix</span>
           </h3>
           <p className="text-xs text-slate-400 mt-1">
-            Specify local geography filters together with group properties to run the constrained recommendation pipeline.
+            Choose OTT subscriptions together with group properties to run the constrained recommendation pipeline.
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-5 items-stretch">
-          {/* Region */}
+          {/* Providers */}
           <div className="lg:col-span-4 space-y-2">
-            <label className="block text-[11px] font-bold tracking-wider text-slate-400 uppercase">1. Region Settings & Providers</label>
-            <div className="grid grid-cols-1 gap-2">
-              {REGIONS.map((r) => {
-                const isSelected = region === r.code
-                return (
-                  <label key={r.code} className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer border transition-all ${
-                    isSelected 
-                      ? 'border-cyan-500/30 bg-cyan-500/5 text-white' 
-                      : 'border-white/5 bg-slate-950 hover:bg-slate-900 text-slate-400 hover:text-slate-200'
-                  }`}>
-                    <input
-                      type="radio"
-                      name="region"
-                      value={r.code}
-                      checked={isSelected}
-                      onChange={(e) => setRegion(e.target.value)}
-                      className="mt-1 h-3.5 w-3.5 accent-cyan-500"
-                    />
-                    <div className="min-w-0">
-                      <div className="text-xs font-extrabold flex items-center gap-1.5">
-                        <span>{r.flags}</span>
-                        <span>{r.label}</span>
-                      </div>
-                      <div className="text-[10px] text-slate-500 truncate mt-0.5">{r.desc}</div>
-                    </div>
-                  </label>
-                )
-              })}
-            </div>
-            <div className="mt-3 rounded-xl border border-white/5 bg-slate-950/70 p-3">
+            <label className="block text-[11px] font-bold tracking-wider text-slate-400 uppercase">1. OTT Subscriptions</label>
+            <div className="rounded-xl border border-white/5 bg-slate-950/70 p-3">
               <div className="mb-2 flex items-center justify-between gap-2">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  OTT subscriptions
+                  Available services
                 </span>
                 <button
                   type="button"
                   onClick={() => {
-                    setSelectedProviders(currentRegion.providers)
+                    setSelectedProviders(OTT_PROVIDERS)
                     setResult(null)
                   }}
                   className="text-[9.5px] font-bold uppercase tracking-wider text-cyan-300 hover:text-cyan-200"
@@ -279,7 +237,7 @@ export default function Mode2() {
                 </button>
               </div>
               <div className="flex flex-wrap gap-2">
-                {currentRegion.providers.map((provider) => {
+                {OTT_PROVIDERS.map((provider) => {
                   const checked = selectedProviders.includes(provider)
                   return (
                     <button
@@ -340,7 +298,7 @@ export default function Mode2() {
             <div className="p-4 rounded-xl bg-slate-950 border border-white/5 flex items-center justify-between">
               <div className="space-y-1 min-w-0">
                 <span className="block text-xs font-bold text-slate-200">Older-Teen Ratings</span>
-                <span className="block text-[10px] text-slate-500">Allow UA/CBFC, PG-13 classifications</span>
+                <span className="block text-[10px] text-slate-500">Allow older-teen safety bands</span>
               </div>
               <button 
                 onClick={() => setAllowTeen(!allowTeen)}

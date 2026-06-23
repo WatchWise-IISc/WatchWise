@@ -18,7 +18,7 @@ const TABS = [
     id: 'mode2', 
     label: 'OTT + Filters', 
     short: 'Mode 2',
-    desc: 'Streamable & localized tonight', 
+    desc: 'Streamable on selected OTTs',
     icon: Tv,
     badge: 'Practical',
     color: 'from-cyan-500 to-indigo-500'

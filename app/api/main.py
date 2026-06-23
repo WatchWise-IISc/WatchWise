@@ -1,4 +1,4 @@
-"""WatchWise 2.0 — FastAPI backend (replaces Gradio demo).
+"""WatchWise 2.0 — FastAPI backend for the React frontend.
 
 Exposes the same DemoEngine logic as REST endpoints for the React frontend.
 """
@@ -77,15 +77,14 @@ def mode1_recommend(gid: int):
 @app.get("/api/mode2/recommend")
 def mode2_recommend(
     gid: int,
-    region: str = "IN",
     allow_teen: bool = True,
     providers: Optional[str] = Query(None),
 ):
-    """Run Mode 2: filtered recommendation for a region."""
+    """Run Mode 2: provider-filtered recommendation."""
     selected_providers = None
     if providers:
         selected_providers = [p.strip() for p in providers.split(",") if p.strip()]
-    result = engine.run_mode2_api(gid, region, allow_teen, selected_providers)
+    result = engine.run_mode2_api(gid, allow_teen, selected_providers)
     return result
 
 

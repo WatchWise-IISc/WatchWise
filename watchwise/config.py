@@ -10,53 +10,65 @@ from __future__ import annotations
 import json
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 # Repository root = parent of the ``watchwise`` package directory.
 ROOT = Path(__file__).resolve().parent.parent
 
 
 # --------------------------------------------------------------------------- #
-# Region configuration (Mode 2 hard filters) — geography-parameterised.       #
-# India is the primary demo instance; US ships as the "agnostic design" proof.#
+# Provider and safety configuration for Mode 2 hard filters.                  #
+# --------------------------------------------------------------------------- #
+GLOBAL_MAX_RUNTIME_MIN = 150
+GLOBAL_FAMILY_SAFE_CERTS = ["U", "G", "PG"]
+GLOBAL_TEEN_CERTS = ["UA", "U/A", "PG-13"]
+GLOBAL_PROVIDER_ALIASES: Dict[str, List[str]] = {
+    "Netflix": ["Netflix", "Netflix Kids", "Netflix Standard with Ads"],
+    "Amazon Prime Video": [
+        "Amazon Prime Video",
+        "Amazon Prime Video with Ads",
+    ],
+    "Disney+ / Hotstar": [
+        "Disney+ / Hotstar",
+        "Disney+ Hotstar",
+        "JioHotstar",
+        "Disney+",
+        "Disney Plus",
+    ],
+    "Zee5": ["Zee5"],
+    "SonyLIV": ["SonyLIV", "Sony Liv"],
+    "Hulu": ["Hulu"],
+    "Max": ["Max", "HBO Max", "HBO Max Amazon Channel"],
+}
+GLOBAL_PROVIDERS = list(GLOBAL_PROVIDER_ALIASES)
+
+
+# --------------------------------------------------------------------------- #
+# Provider-market cache settings used only while enriching MovieLens metadata. #
+# The app itself never exposes these as user-selectable constraints.           #
 # --------------------------------------------------------------------------- #
 @dataclass
-class RegionConfig:
-    """Hard-filter configuration for one geography (spec §15.1)."""
+class ProviderCacheMarket:
+    """TMDb cache/enrichment source for watch-provider availability."""
 
-    name: str
-    watch_region: str                 # ISO 3166-1 country code (TMDb watch/providers)
-    platforms: List[str]              # provider names treated as "available"
-    languages: List[str]              # acceptable original_language codes (ISO 639-1)
-    max_runtime_min: int              # runtime cap for "tonight"
-    family_safe_certs: List[str]      # youngest-safe allowlist (per national rating system)
-    teen_certs: List[str]             # older-teen tier added only when allow_teen=True
-    rating_system: str                # CBFC / MPAA / ...
+    tmdb_market: str
+    fallback_platforms: List[str]
 
 
-REGIONS: Dict[str, RegionConfig] = {
-    "IN": RegionConfig(
-        name="India",
-        watch_region="IN",
-        platforms=["Netflix", "Disney+ Hotstar", "Amazon Prime Video", "Zee5", "SonyLIV"],
-        languages=["hi", "ta", "en"],
-        max_runtime_min=150,
-        # CBFC: U = all ages, UA = parental guidance (older-teen), A/S = adult (excluded).
-        # UA is the *teen* tier, so allow_teen=False (young child) tightens to U-only.
-        family_safe_certs=["U"],
-        teen_certs=["UA", "U/A"],
-        rating_system="CBFC",
+PROVIDER_CACHE_MARKETS: Dict[str, ProviderCacheMarket] = {
+    "provider_source_a": ProviderCacheMarket(
+        tmdb_market="IN",
+        fallback_platforms=[
+            "Netflix",
+            "Disney+ Hotstar",
+            "Amazon Prime Video",
+            "Zee5",
+            "SonyLIV",
+        ],
     ),
-    "US": RegionConfig(
-        name="United States",
-        watch_region="US",
-        platforms=["Netflix", "Disney+", "Hulu", "Amazon Prime Video", "Max"],
-        languages=["en"],
-        max_runtime_min=150,
-        # MPAA: G/PG youngest-safe, PG-13 the togglable teen tier; R/NC-17 excluded.
-        family_safe_certs=["G", "PG"],
-        teen_certs=["PG-13"],
-        rating_system="MPAA",
+    "provider_source_b": ProviderCacheMarket(
+        tmdb_market="US",
+        fallback_platforms=["Netflix", "Disney+", "Hulu", "Amazon Prime Video", "Max"],
     ),
 }
 
@@ -142,7 +154,6 @@ class WatchWiseConfig:
     relevant_threshold: float = 4.0      # a held-out movie is "relevant" if rating >= this
 
     # --- demo -------------------------------------------------------------- #
-    default_region: str = "IN"
     enrichment_snapshot_date: str = "2026-06-13"
 
     # --- paths (derived) --------------------------------------------------- #
@@ -171,9 +182,6 @@ class WatchWiseConfig:
     def ensure_dirs(self) -> None:
         for d in (self.raw_dir, self.cache_dir, self.results_dir):
             d.mkdir(parents=True, exist_ok=True)
-
-    def region(self, code: Optional[str] = None) -> RegionConfig:
-        return REGIONS[code or self.default_region]
 
     # ------------------------------------------------------------------ #
     def reward_weights(self) -> Dict[str, float]:

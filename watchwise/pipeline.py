@@ -23,7 +23,7 @@ import pandas as pd
 
 from .accelerator import Accelerator
 from .candidates import CatalogSpace
-from .config import RegionConfig, WatchWiseConfig
+from .config import WatchWiseConfig
 from .filters import disallowed_movies
 from .models.diffusion import GroupDiffusion
 from .models.mf import MFArtifacts
@@ -63,10 +63,10 @@ class Recommender:
         self.policy = policy
 
     # ------------------------------------------------------------------ #
-    def _exclude(self, seen: Sequence[int], region: Optional[RegionConfig],
-                 allow_teen: bool, providers: Optional[Sequence[str]] = None) -> set:
+    def _exclude(self, seen: Sequence[int], allow_teen: bool,
+                 providers: Optional[Sequence[str]] = None) -> set:
         ex = set(int(s) for s in (seen or []))
-        ex |= disallowed_movies(self.catalog, region, allow_teen, providers)
+        ex |= disallowed_movies(self.catalog, allow_teen, providers)
         return ex
 
     def _pool(self, method: str, members: Sequence[int], exclude: set,
@@ -80,11 +80,10 @@ class Recommender:
     # ------------------------------------------------------------------ #
     def recommend(self, members: Sequence[int], method: str,
                   seen: Optional[Sequence[int]] = None,
-                  region: Optional[RegionConfig] = None, allow_teen: bool = True,
-                  providers: Optional[Sequence[str]] = None,
+                  allow_teen: bool = True, providers: Optional[Sequence[str]] = None,
                   weights: Optional[Dict[str, float]] = None) -> RecResult:
         members = [int(m) for m in members]
-        exclude = self._exclude(seen, region, allow_teen, providers)
+        exclude = self._exclude(seen, allow_teen, providers)
         k = self.cfg.slate_size
 
         if method == "avg_baseline":

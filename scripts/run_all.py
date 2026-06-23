@@ -44,7 +44,7 @@ def main() -> None:
         runpy.run_path(str(here / stage), run_name="__main__")
     mins = (time.perf_counter() - t0) / 60
     print(f"\n=== WatchWise pipeline complete in {mins:.1f} min. "
-          f"Results in results/, demo: python app/demo.py ===")
+          f"Results in results/. Run the app with ./app/start.sh ===")
 
 
 if __name__ == "__main__":

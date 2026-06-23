@@ -16,9 +16,15 @@ if str(ROOT) not in sys.path:
 from watchwise.accelerator import Accelerator
 from watchwise.candidates import CatalogSpace
 from watchwise.coldstart import PRESET_FAMILIES, map_profiles_to_users
-from watchwise.config import REGIONS, get_config
+from watchwise.config import (
+    GLOBAL_FAMILY_SAFE_CERTS,
+    GLOBAL_MAX_RUNTIME_MIN,
+    GLOBAL_PROVIDERS,
+    GLOBAL_TEEN_CERTS,
+    get_config,
+)
 from watchwise.evaluate import evaluate_slate
-from watchwise.filters import movie_passes
+from watchwise.filters import matching_provider_labels, movie_passes
 from watchwise.groups import load_groups, split_groups
 from watchwise.models.diffusion import load_diffusion
 from watchwise.models.mf import MFArtifacts
@@ -106,7 +112,6 @@ class DemoEngine:
         self,
         slate,
         members,
-        region_code=None,
         providers: Optional[Sequence[str]] = None,
     ) -> List[dict]:
         if not slate:
@@ -135,33 +140,35 @@ class DemoEngine:
                 "mean_member_sat": round(float(sat[:, j].mean()), 3),
                 "best_for": served if served else [],
             }
-            if region_code:
-                reg = REGIONS[region_code]
-                row["language"] = r["original_language"]
+            if providers:
                 row["runtime"] = int(r["runtime"])
-                row["cert"] = r[f"cert_{region_code}"]
-                providers_raw = r.get(f"providers_{region_code}", "[]")
-                if isinstance(providers_raw, str):
-                    streams_on = json.loads(providers_raw)
-                else:
-                    streams_on = list(providers_raw) if providers_raw else []
-                if providers:
-                    selected = set(providers)
-                    streams_on = [p for p in streams_on if p in selected]
-                row["streams_on"] = streams_on
+                row["cert"] = self._age_band(r)
+                row["streams_on"] = matching_provider_labels(r, providers)
             rows.append(row)
         return rows
 
-    def _selected_providers(self, reg, providers: Optional[Sequence[str]]) -> List[str]:
+    def _age_band(self, row) -> str:
+        certs = {
+            str(row[c])
+            for c in row.index
+            if c.startswith("cert_") and pd.notna(row[c])
+        }
+        if certs & set(GLOBAL_FAMILY_SAFE_CERTS):
+            return "Family"
+        if certs & set(GLOBAL_TEEN_CERTS):
+            return "Teen"
+        return "Restricted"
+
+    def _selected_providers(self, providers: Optional[Sequence[str]]) -> List[str]:
         if not providers:
-            return list(reg.platforms)
-        allowed = set(reg.platforms)
+            return list(GLOBAL_PROVIDERS)
+        allowed = set(GLOBAL_PROVIDERS)
         selected = []
         for provider in providers:
             clean = provider.strip()
             if clean in allowed and clean not in selected:
                 selected.append(clean)
-        return selected or list(reg.platforms)
+        return selected or list(GLOBAL_PROVIDERS)
 
     # ---- Mode 1 ---------------------------------------------------------- #
     def run_mode1_api(self, gid: int) -> dict:
@@ -203,18 +210,15 @@ class DemoEngine:
     def run_mode2_api(
         self,
         gid: int,
-        region_code: str,
         allow_teen: bool,
         providers: Optional[Sequence[str]] = None,
     ) -> dict:
-        reg = REGIONS[region_code]
-        selected_providers = self._selected_providers(reg, providers)
+        selected_providers = self._selected_providers(providers)
         g = self._gt[gid]
         baseline_res = self.rec.recommend(
             g.members,
             "avg_baseline",
             seen=g.seen,
-            region=reg,
             allow_teen=allow_teen,
             providers=selected_providers,
         )
@@ -222,20 +226,17 @@ class DemoEngine:
             g.members,
             "diffusion_greedy",
             seen=g.seen,
-            region=reg,
             allow_teen=allow_teen,
             providers=selected_providers,
         )
         baseline_slate = self._slate_data(
             baseline_res.slate,
             g.members,
-            region_code=region_code,
             providers=selected_providers,
         )
         watchwise_slate = self._slate_data(
             watchwise_res.slate,
             g.members,
-            region_code=region_code,
             providers=selected_providers,
         )
 
@@ -244,7 +245,7 @@ class DemoEngine:
                 return 0.0
             rows = self.catalog_by_idx.loc[slate]
             return float(np.mean([
-                movie_passes(r, reg, allow_teen, selected_providers)
+                movie_passes(r, allow_teen, selected_providers)
                 for _, r in rows.iterrows()
             ]))
 
@@ -260,15 +261,11 @@ class DemoEngine:
             "baseline_match_rate": baseline_match_rate,
             "watchwise_match_rate": watchwise_match_rate,
             "selected_providers": selected_providers,
-            "region": {
-                "code": region_code,
-                "name": reg.name,
-                "platforms": reg.platforms,
-                "languages": reg.languages,
-                "max_runtime": reg.max_runtime_min,
-                "family_safe_certs": reg.family_safe_certs,
-                "teen_certs": reg.teen_certs,
-                "rating_system": reg.rating_system,
+            "constraints": {
+                "providers": GLOBAL_PROVIDERS,
+                "max_runtime": GLOBAL_MAX_RUNTIME_MIN,
+                "family_safe_certs": GLOBAL_FAMILY_SAFE_CERTS,
+                "teen_certs": GLOBAL_TEEN_CERTS,
             },
             "allow_teen": allow_teen,
             "snapshot_date": self.cfg.enrichment_snapshot_date,

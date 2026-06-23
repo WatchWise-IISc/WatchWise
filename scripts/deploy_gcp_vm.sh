@@ -97,6 +97,7 @@ sudo mkdir -p "$BACKUP_ROOT"
 if [ -d "$REMOTE_DIR" ]; then
   sudo mkdir -p "$BACKUP_ROOT/watchwise-$TS"
   sudo rsync -a --delete \
+    --exclude '.env' \
     --exclude '.venv/' \
     --exclude 'app/frontend/node_modules/' \
     --exclude 'app/frontend/dist/' \
@@ -116,6 +117,7 @@ REMOTE_PREP
 
 log "Syncing repository runtime files to $REMOTE:$REMOTE_DIR"
 rsync -az --delete --relative \
+  --exclude '.env' \
   --exclude '.git/' \
   --exclude '.venv/' \
   --exclude '__pycache__/' \
@@ -127,6 +129,11 @@ rsync -az --delete --relative \
   -e "$RSYNC_RSH" \
   "${SYNC_PATHS[@]}" \
   "$REMOTE:$REMOTE_DIR/"
+
+if [ -f ".env" ]; then
+  log "Syncing local runtime environment file"
+  rsync -az -e "$RSYNC_RSH" ".env" "$REMOTE:$REMOTE_DIR/.env"
+fi
 
 log "Installing dependencies, building frontend, and configuring services"
 ssh "${SSH_OPTS[@]}" "$REMOTE" \
@@ -170,6 +177,7 @@ User=${REMOTE_USER}
 Group=${REMOTE_GROUP}
 WorkingDirectory=${REMOTE_DIR}
 Environment=WATCHWISE_PHASE=${WATCHWISE_PHASE}
+EnvironmentFile=-${REMOTE_DIR}/.env
 Environment=PYTHONUNBUFFERED=1
 Environment=OMP_NUM_THREADS=2
 Environment=OPENBLAS_NUM_THREADS=2

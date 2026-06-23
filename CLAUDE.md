@@ -50,8 +50,6 @@ python tests/test_smoke.py               # or: python -m pytest tests/ -q   (6 i
 ./scripts/fetch_cache.sh phase2          # pull the ~416 MB phase2 cache from the GitHub Release
 uvicorn app.api.main:app --reload        # backend only (frontend dev: cd app/frontend && npm run dev)
 
-# Demo (legacy — same 3 modes, Gradio; offline)
-python app/demo.py                       # Gradio, http://localhost:7860
 ```
 
 There is no separate lint runner. Correctness is enforced by `tests/test_smoke.py` (asserts the
@@ -78,7 +76,7 @@ MovieLens ratings + links.csv
   → MF member/movie embeddings (train split only)                      models/mf.py
   → group formation → group taste vector                               groups.py, candidates.py
   → candidate generation:  [NN retrieval]  XOR  [diffusion]  ← the swap candidates.py, models/diffusion.py
-  → hard filters (OTT/language/runtime/age), Mode 2 only, BEFORE scoring  filters.py
+  → hard filters (OTT/runtime/age), Mode 2 only, BEFORE scoring  filters.py
   → reranking:  [greedy fairness bandit]  XOR  [REINFORCE slate]       models/reranker.py, models/rl.py
   → final 3-5 movie watchlist                                          pipeline.py
 ```
@@ -97,8 +95,7 @@ so frontend code calls bare `/api/...` (`app/frontend/src/api.js`) and CORS is o
   cached artifact (`mf.npz`, `text_embeddings.npy`, `catalog.parquet`, `train_ratings.parquet`,
   `diffusion.pt`, `rl_policy.pt`, `groups.json`) for one phase and builds one `Recommender`. Methods
   return **plain JSON-able dicts** (not DataFrames/Markdown) — `run_mode1_api` / `run_mode2_api` /
-  `run_mode3_api` mirror the three demo modes. **`app/demo.py` (Gradio) is the legacy twin of the same
-  engine logic** — keep the two in sync when changing demo behaviour.
+  `run_mode3_api` mirror the three app modes.
 - **`app/api/main.py`** is just endpoint plumbing: a `lifespan` hook builds the `DemoEngine` at startup
   from `WATCHWISE_PHASE` (default `phase2`; note `DemoEngine`'s own default is `phase1`), then routes
   `/api/groups`, `/api/group/{gid}/members`, `/api/mode{1,2,3}/...`, `/api/results/summary`.
@@ -146,5 +143,5 @@ so frontend code calls bare `/api/...` (`app/frontend/src/api.js`) and CORS is o
 
 - Families are **synthetic** (real users grouped); "group satisfaction" is a predicted-rating proxy on
   real held-out movies — never real co-viewing. Mode 3 (cold-start) is **illustrative, not measured**.
-- Without `TMDB_API_KEY`, OTT/language/certification are a deterministic offline fallback (labelled
+- Without `TMDB_API_KEY`, OTT/runtime/certification are a deterministic offline fallback (labelled
   `enrichment_source`); genres, year and popularity are real MovieLens data.

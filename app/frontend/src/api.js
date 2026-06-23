@@ -15,10 +15,9 @@ export async function fetchMode1(gid) {
   return res.json();
 }
 
-export async function fetchMode2(gid, region, allowTeen, providers = []) {
+export async function fetchMode2(gid, allowTeen, providers = []) {
   const params = new URLSearchParams({
     gid,
-    region,
     allow_teen: allowTeen,
   });
   if (providers.length > 0) {

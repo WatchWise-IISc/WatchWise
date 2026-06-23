@@ -8,7 +8,7 @@
 
 Netflix-style recommenders optimise for **one** profile. A family watching together
 is a **group decision**: different tastes, plus real constraints (what's streamable
-tonight, language, runtime, age). WatchWise treats movie selection as a
+tonight, runtime, age). WatchWise treats movie selection as a
 *fairness-aware group compromise* — maximise total satisfaction **while protecting
 the member who is usually ignored**.
 
@@ -90,13 +90,13 @@ set `ACCELERATOR` to match the runtime, and run all cells.
 | Phase 1 | `ml-latest-small` (100K ratings) | fast dev + demo | `--phase phase1` (default) |
 | Phase 2 | `ml-25m` (25M ratings) | scale / final numbers | `--phase phase2` |
 
-## The demo (Gradio, 3 modes)
+## The app (React + FastAPI, 3 modes)
 
 * **Mode 1 — Core science (measured):** baseline vs WatchWise on a divergent group;
   shows diffusion candidates and the worst-off-member lift.
-* **Mode 2 — OTT + language + age (filtered):** India (primary) & US (agnostic
-  proof) region configs; every pick is streamable tonight, in an acceptable
-  language, within runtime and age limits.
+* **Mode 2 — OTT + age (filtered):** users select one or more streaming services;
+  every pick is streamable on the selected subscriptions and stays within runtime
+  and age-safety limits.
 * **Mode 3 — Cold-start family (illustrative, NOT measured):** a hand-authored
   family, clearly labelled.
 
@@ -105,7 +105,7 @@ set `ACCELERATOR` to match the runtime, and run all cells.
 * Families are **synthetic** (real MovieLens users grouped); "group satisfaction" is
   a predicted-rating proxy on **real held-out** ratings — never real co-viewing
   (spec §18.2). The held-out NDCG/Hit metrics keep the evaluation non-circular.
-* With no `TMDB_API_KEY`, the OTT/language/age fields are a **deterministic offline
+* With no `TMDB_API_KEY`, the OTT/runtime/age fields are a **deterministic offline
   fallback** (clearly labelled); genres, year and popularity are real MovieLens data.
   Set `TMDB_API_KEY` to fetch and cache real TMDb metadata instead.
 * The text encoder is a frozen `all-mpnet-base-v2`; if it (or its download) is
@@ -117,8 +117,9 @@ set `ACCELERATOR` to match the runtime, and run all cells.
 ```
 watchwise/        config, accelerator, data/, models/ (mf, diffusion, reranker, rl),
                   candidates, reward, groups, filters, pipeline, evaluate, coldstart
-scripts/          01_prepare_data … 06_evaluate, run_all
-app/demo.py       Gradio 3-mode dashboard
+scripts/          01_prepare_data … 06_evaluate, run_all, deploy_gcp_vm.sh
+app/api/          FastAPI backend for the React app
+app/frontend/     React UI
 notebooks/        Kaggle notebook (all accelerators)
 results/          metrics CSV/JSON, figures, summary.md  (generated)
 ```
