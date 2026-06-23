@@ -126,9 +126,10 @@ export default function Mode3() {
           </div>
           <div className="mt-6 border-t border-black/10 pt-5">
             <div className="swiss-section-title mb-3">Technical Approach</div>
-            <dl className="space-y-3 text-sm leading-relaxed text-[#505051]">
+            <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
               {[
                 {
+                  step: '01',
                   k: 'Proxy mapping',
                   v: (
                     <>
@@ -137,6 +138,7 @@ export default function Mode3() {
                   ),
                 },
                 {
+                  step: '02',
                   k: 'Generation',
                   v: (
                     <>
@@ -145,6 +147,7 @@ export default function Mode3() {
                   ),
                 },
                 {
+                  step: '03',
                   k: 'Inference',
                   v: (
                     <>
@@ -153,6 +156,7 @@ export default function Mode3() {
                   ),
                 },
                 {
+                  step: '04',
                   k: 'Caveat',
                   v: (
                     <>
@@ -160,44 +164,55 @@ export default function Mode3() {
                     </>
                   ),
                 },
-              ].map(({ k, v }) => (
-                <div key={k} className="sm:grid sm:grid-cols-[120px_1fr] sm:gap-4">
-                  <dt className="mb-1 font-mono text-[10px] font-extrabold uppercase tracking-widest text-[#EA580C] sm:mb-0 sm:pt-0.5">
-                    {k}
-                  </dt>
-                  <dd>{v}</dd>
+              ].map(({ step, k, v }) => (
+                <div key={k} className="border border-black/10 bg-white p-4 transition-all hover:border-[#EA580C]/45 flex flex-col justify-between">
+                  <div>
+                    <div className="mb-2 flex items-center justify-between border-b border-black/10 pb-1.5">
+                      <span className="font-mono text-[10px] font-extrabold uppercase tracking-widest text-[#EA580C]">{k}</span>
+                      <span className="font-mono text-[10px] font-extrabold text-[#9A9A9A]">{step}</span>
+                    </div>
+                    <p className="text-xs leading-relaxed text-[#505051]">{v}</p>
+                  </div>
                 </div>
               ))}
-            </dl>
+            </div>
           </div>
         </div>
 
-        <div className="swiss-panel flex h-full flex-col p-6 lg:col-span-5">
+        <div className="swiss-panel-strong flex h-full flex-col p-6 lg:col-span-5">
           <span className="swiss-section-title">Technical Contrast</span>
           <h3 className="mt-2 font-display text-xl font-extrabold uppercase tracking-tight">
             Cold-start solutions
           </h3>
-          <div className="mt-5 grid flex-1 gap-3">
-            <div className="border border-black/15 bg-white p-4">
-              <span className="swiss-tag">Traditional</span>
-              <p className="mt-2 text-[13px] leading-relaxed text-[#505051]">
-                A traditional collaborative filter needs ratings before it can locate each new member. With a brand-new anime fan, rom-com fan, and documentary fan, it falls back to global popularity and may predict <strong className="font-semibold text-[#1A1A1A]">The Shawshank Redemption</strong> or <strong className="font-semibold text-[#1A1A1A]">Toy Story</strong> for everyone.
-              </p>
-              <div className="mt-2.5 border-t border-black/10 pt-2">
-                <span className="font-mono text-[9px] font-extrabold uppercase tracking-widest text-[#909090]">Where it fails</span>
-                <p className="mt-1 text-xs leading-relaxed text-[#606060]">
+          <div className="mt-5 grid flex-1 gap-4">
+            <div className="border border-black/15 bg-white border-l-4 border-l-[#707070] p-4 transition-all hover:bg-[#FAF9F6]/20 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between pb-2 mb-2 border-b border-black/5">
+                  <span className="swiss-tag">Traditional</span>
+                </div>
+                <p className="mt-2 text-xs leading-relaxed text-[#505051]">
+                  A traditional collaborative filter needs ratings before it can locate each new member. With a brand-new anime fan, rom-com fan, and documentary fan, it falls back to global popularity and may predict <strong className="font-semibold text-[#1A1A1A]">The Shawshank Redemption</strong> or <strong className="font-semibold text-[#1A1A1A]">Toy Story</strong> for everyone.
+                </p>
+              </div>
+              <div className="mt-3.5 border-t border-black/10 pt-2.5">
+                <span className="font-mono text-[9px] font-extrabold uppercase tracking-widest text-[#D83B01] block mb-1">▼ Where it fails</span>
+                <p className="text-xs leading-relaxed text-[#606060]">
                   Those movies are defensible defaults, but the system cannot explain why the anime fan or documentary fan should be satisfied. It predicts safety from popularity, not compatibility from declared taste.
                 </p>
               </div>
             </div>
-            <div className="border border-[#EA580C]/35 bg-white p-4">
-              <span className="swiss-tag swiss-tag-accent">WatchWise</span>
-              <p className="mt-2 text-[13px] leading-relaxed text-[#505051]">
-                WatchWise turns each declared genre profile into a proxy user vector, combines those vectors as a temporary household, and runs the same diffusion plus REINFORCE slate logic. It can predict bridging titles like <strong className="font-semibold text-[#1A1A1A]">Spirited Away</strong>, <strong className="font-semibold text-[#1A1A1A]">Amelie</strong>, or <strong className="font-semibold text-[#1A1A1A]">Won&apos;t You Be My Neighbor?</strong>
-              </p>
-              <div className="mt-2.5 border-t border-[#EA580C]/20 pt-2">
-                <span className="font-mono text-[9px] font-extrabold uppercase tracking-widest text-[#B84309]">Where it wins</span>
-                <p className="mt-1 text-xs leading-relaxed text-[#606060]">
+            <div className="border border-[#EA580C]/35 bg-[#FAF9F6]/40 border-l-4 border-l-[#EA580C] p-4 transition-all hover:bg-[#EA580C]/5 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#EA580C]/10">
+                  <span className="swiss-tag swiss-tag-accent">WatchWise</span>
+                </div>
+                <p className="mt-2 text-xs leading-relaxed text-[#505051]">
+                  WatchWise turns each declared genre profile into a proxy user vector, combines those vectors as a temporary household, and runs the same diffusion plus REINFORCE slate logic. It can predict bridging titles like <strong className="font-semibold text-[#1A1A1A]">Spirited Away</strong>, <strong className="font-semibold text-[#1A1A1A]">Amelie</strong>, or <strong className="font-semibold text-[#1A1A1A]">Won&apos;t You Be My Neighbor?</strong>
+                </p>
+              </div>
+              <div className="mt-3.5 border-t border-[#EA580C]/20 pt-2.5">
+                <span className="font-mono text-[9px] font-extrabold uppercase tracking-widest text-[#B84309] block mb-1">▲ Where it wins</span>
+                <p className="text-xs leading-relaxed text-[#606060]">
                   The first slate is still illustrative, but every title is tied to a stated preference and checked against the group floor. Instead of asking for a tedious rating checklist, the app gives a plausible compromise immediately and improves once real feedback exists.
                 </p>
               </div>

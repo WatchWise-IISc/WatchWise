@@ -210,9 +210,10 @@ export default function Mode1() {
           </div>
           <div className="mt-6 border-t border-black/10 pt-5">
             <div className="swiss-section-title mb-3">Technical Approach</div>
-            <dl className="space-y-3 text-sm leading-relaxed text-[#505051]">
+            <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
               {[
                 {
+                  step: '01',
                   k: 'Training',
                   v: (
                     <>
@@ -221,6 +222,7 @@ export default function Mode1() {
                   ),
                 },
                 {
+                  step: '02',
                   k: 'Generation',
                   v: (
                     <>
@@ -229,6 +231,7 @@ export default function Mode1() {
                   ),
                 },
                 {
+                  step: '03',
                   k: 'Reranking',
                   v: (
                     <>
@@ -237,6 +240,7 @@ export default function Mode1() {
                   ),
                 },
                 {
+                  step: '04',
                   k: 'Inference',
                   v: (
                     <>
@@ -244,44 +248,55 @@ export default function Mode1() {
                     </>
                   ),
                 },
-              ].map(({ k, v }) => (
-                <div key={k} className="sm:grid sm:grid-cols-[120px_1fr] sm:gap-4">
-                  <dt className="mb-1 font-mono text-[10px] font-extrabold uppercase tracking-widest text-[#EA580C] sm:mb-0 sm:pt-0.5">
-                    {k}
-                  </dt>
-                  <dd>{v}</dd>
+              ].map(({ step, k, v }) => (
+                <div key={k} className="border border-black/10 bg-white p-4 transition-all hover:border-[#EA580C]/45 flex flex-col justify-between">
+                  <div>
+                    <div className="mb-2 flex items-center justify-between border-b border-black/10 pb-1.5">
+                      <span className="font-mono text-[10px] font-extrabold uppercase tracking-widest text-[#EA580C]">{k}</span>
+                      <span className="font-mono text-[10px] font-extrabold text-[#9A9A9A]">{step}</span>
+                    </div>
+                    <p className="text-xs leading-relaxed text-[#505051]">{v}</p>
+                  </div>
                 </div>
               ))}
-            </dl>
+            </div>
           </div>
         </div>
 
-        <div className="swiss-panel flex h-full flex-col p-6 lg:col-span-5">
+        <div className="swiss-panel-strong flex h-full flex-col p-6 lg:col-span-5">
           <span className="swiss-section-title">Technical Contrast</span>
           <h3 className="mt-2 font-display text-xl font-extrabold uppercase tracking-tight">
             Methodology architecture
           </h3>
-          <div className="mt-5 grid flex-1 gap-3">
-            <div className="border border-black/15 bg-white p-4">
-              <span className="swiss-tag">Traditional</span>
-              <p className="mt-2 text-[13px] leading-relaxed text-[#505051]">
-                The average-vector baseline searches for movies closest to the group centroid. In a five-person group with four action fans and one quiet-drama fan, it would likely predict <strong className="font-semibold text-[#1A1A1A]">The Avengers</strong> or <strong className="font-semibold text-[#1A1A1A]">Mad Max: Fury Road</strong> as the safest shared choice.
-              </p>
-              <div className="mt-2.5 border-t border-black/10 pt-2">
-                <span className="font-mono text-[9px] font-extrabold uppercase tracking-widest text-[#909090]">Where it fails</span>
-                <p className="mt-1 text-xs leading-relaxed text-[#606060]">
+          <div className="mt-5 grid flex-1 gap-4">
+            <div className="border border-black/15 bg-white border-l-4 border-l-[#707070] p-4 transition-all hover:bg-[#FAF9F6]/20 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between pb-2 mb-2 border-b border-black/5">
+                  <span className="swiss-tag">Traditional</span>
+                </div>
+                <p className="mt-2 text-xs leading-relaxed text-[#505051]">
+                  The average-vector baseline searches for movies closest to the group centroid. In a five-person group with four action fans and one quiet-drama fan, it would likely predict <strong className="font-semibold text-[#1A1A1A]">The Avengers</strong> or <strong className="font-semibold text-[#1A1A1A]">Mad Max: Fury Road</strong> as the safest shared choice.
+                </p>
+              </div>
+              <div className="mt-3.5 border-t border-black/10 pt-2.5">
+                <span className="font-mono text-[9px] font-extrabold uppercase tracking-widest text-[#D83B01] block mb-1">▼ Where it fails</span>
+                <p className="text-xs leading-relaxed text-[#606060]">
                   Those titles can score a strong average because the majority pulls the centroid toward spectacle, but the drama fan&apos;s predicted satisfaction may sit near 2/5. The slate looks democratic numerically while repeatedly sacrificing the same minority taste.
                 </p>
               </div>
             </div>
-            <div className="border border-[#EA580C]/35 bg-white p-4">
-              <span className="swiss-tag swiss-tag-accent">WatchWise</span>
-              <p className="mt-2 text-[13px] leading-relaxed text-[#505051]">
-                WatchWise samples compromise candidates with diffusion, mixes them with NN retrieval, then ranks by average fit plus the worst-off member floor. The same group can surface <strong className="font-semibold text-[#1A1A1A]">Arrival</strong>, <strong className="font-semibold text-[#1A1A1A]">The Prestige</strong>, or <strong className="font-semibold text-[#1A1A1A]">Knives Out</strong> style picks.
-              </p>
-              <div className="mt-2.5 border-t border-[#EA580C]/20 pt-2">
-                <span className="font-mono text-[9px] font-extrabold uppercase tracking-widest text-[#B84309]">Where it wins</span>
-                <p className="mt-1 text-xs leading-relaxed text-[#606060]">
+            <div className="border border-[#EA580C]/35 bg-[#FAF9F6]/40 border-l-4 border-l-[#EA580C] p-4 transition-all hover:bg-[#EA580C]/5 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#EA580C]/10">
+                  <span className="swiss-tag swiss-tag-accent">WatchWise</span>
+                </div>
+                <p className="mt-2 text-xs leading-relaxed text-[#505051]">
+                  WatchWise samples compromise candidates with diffusion, mixes them with NN retrieval, then ranks by average fit plus the worst-off member floor. The same group can surface <strong className="font-semibold text-[#1A1A1A]">Arrival</strong>, <strong className="font-semibold text-[#1A1A1A]">The Prestige</strong>, or <strong className="font-semibold text-[#1A1A1A]">Knives Out</strong> style picks.
+                </p>
+              </div>
+              <div className="mt-3.5 border-t border-[#EA580C]/20 pt-2.5">
+                <span className="font-mono text-[9px] font-extrabold uppercase tracking-widest text-[#B84309] block mb-1">▲ Where it wins</span>
+                <p className="text-xs leading-relaxed text-[#606060]">
                   These films still satisfy the action-leaning majority through tension and scale, but give the drama-oriented member a much higher personal rank. The reranker prefers the slate whose weakest predicted viewer is closer to 3.5/5 instead of chasing only the loudest average.
                 </p>
               </div>
