@@ -2,15 +2,15 @@ import React, { useState } from 'react'
 import Mode1 from './components/Mode1.jsx'
 import Mode2 from './components/Mode2.jsx'
 import Mode3 from './components/Mode3.jsx'
-import { Activity, Film, Info, Layers, Sparkles, Tv, X } from 'lucide-react'
+import { Film, Info, Layers, ShieldCheck, Sparkles, Tv, X } from 'lucide-react'
 
 const TABS = [
   {
     id: 'mode1',
-    label: 'Fairness Benchmark',
+    label: 'Fairness Stress Test',
     short: 'Mode 1',
-    desc: 'Measured fairness and relevance evidence',
-    icon: Activity,
+    desc: 'Worst-off satisfaction, held-out NDCG, and Hit@5',
+    icon: ShieldCheck,
   },
   {
     id: 'mode2',
@@ -94,7 +94,7 @@ export default function App() {
               </div>
             </div>
 
-            <div className="swiss-panel p-4 font-mono text-xs lg:col-span-5">
+            <div className="swiss-panel flex flex-col p-4 font-mono text-xs lg:col-span-5">
               <div className="flex items-center justify-between border-b border-black/15 pb-2">
                 <span className="text-[#707070]">WATCHWISE MODEL CARD</span>
                 <span className="font-extrabold uppercase tracking-widest text-[#EA580C]">{activeMeta.short}</span>
@@ -128,13 +128,37 @@ export default function App() {
                   Click any tile to see how this element drives WatchWise’s fairness-aware group compromise.
                 </div>
               )}
-              <div className="mt-3 border-l-4 border-[#EA580C] bg-white px-3 py-2 text-[10px] font-extrabold uppercase tracking-widest text-[#404040]">
-                MF embeddings, conditional diffusion, fairness-aware RL slate.
+              <div className="mt-3 border border-[#CFE1D9] bg-[#F4FBF8] p-4 text-[#1F5B43]">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-2 font-mono text-[11px] font-extrabold uppercase tracking-widest">
+                    <span className="relative flex h-2.5 w-2.5 shrink-0" aria-hidden="true">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#1F5B43] opacity-35" />
+                      <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[#1F5B43]" />
+                    </span>
+                    <span>Active inference stack</span>
+                  </div>
+                  <span className="shrink-0 bg-[#E4F1EB] px-2 py-1 font-mono text-[10px] font-extrabold uppercase tracking-widest text-[#1F5B43]">
+                    {activeMeta.short.replace('Mode ', 'Mode 0')}
+                  </span>
+                </div>
+                <div className="mt-4 font-mono text-[10px] uppercase tracking-widest text-[#718175]">
+                  Latent compilation:
+                </div>
+                <div className="mt-1 whitespace-nowrap font-display text-lg font-extrabold leading-tight tracking-tight text-[#253042] xl:text-xl">
+                  128D MF Embeddings → Conditional DDPM Pool
+                </div>
+                <div className="mt-4 border-t border-[#CFE1D9] pt-4">
+                  <p className="text-[13px] font-medium leading-relaxed text-[#1F5B43]">
+                    A fairness-aware RL slate policy reranks candidate vectors for group relevance while guarding worst-off member satisfaction thresholds.
+                  </p>
+                </div>
+                <div className="mt-4 border-t border-[#CFE1D9]" />
               </div>
+              <div className="min-h-3 flex-1" aria-hidden="true" />
               <button
                 type="button"
                 onClick={() => setShowDocSidebar(true)}
-                className="mt-4 w-full swiss-button-secondary"
+                className="mt-3 w-full swiss-button-secondary"
               >
                 <Info className="h-3.5 w-3.5" />
                 Project Blueprint Spec

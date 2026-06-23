@@ -164,8 +164,8 @@ export default function Mode2() {
 
   return (
     <div className="space-y-8 text-[#1A1A1A]">
-      <section className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        <div className="swiss-panel-strong p-6 lg:col-span-7">
+      <section className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-stretch">
+        <div className="swiss-panel-strong h-full p-6 lg:col-span-7">
           <span className="swiss-section-title">Mode 2 · Streamability Engine</span>
           <h2 className="mt-2 font-display text-3xl font-extrabold uppercase tracking-tighter">
             Real-world constraints before movie night
@@ -229,7 +229,7 @@ export default function Mode2() {
           </div>
         </div>
 
-        <div className="swiss-panel flex flex-col p-6 lg:col-span-5">
+        <div className="swiss-panel flex h-full flex-col p-6 lg:col-span-5">
           <span className="swiss-section-title">Pipeline Adaptation</span>
           <h3 className="mt-2 font-display text-xl font-extrabold uppercase tracking-tight">
             Pruning sequence
