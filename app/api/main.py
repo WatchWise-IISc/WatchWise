@@ -79,9 +79,13 @@ def mode2_recommend(
     gid: int,
     region: str = "IN",
     allow_teen: bool = True,
+    providers: Optional[str] = Query(None),
 ):
     """Run Mode 2: filtered recommendation for a region."""
-    result = engine.run_mode2_api(gid, region, allow_teen)
+    selected_providers = None
+    if providers:
+        selected_providers = [p.strip() for p in providers.split(",") if p.strip()]
+    result = engine.run_mode2_api(gid, region, allow_teen, selected_providers)
     return result
 
 

@@ -2,18 +2,31 @@ import React, { useState, useEffect } from 'react'
 import { fetchGroups, fetchMode2 } from '../api.js'
 import GroupPanel from './GroupPanel.jsx'
 import SlateTable from './SlateTable.jsx'
-import { Sparkles, HelpCircle, CheckCircle, RefreshCw, Cpu, Tv, Eye, AlertCircle, Info, Landmark, Layers, ToggleLeft, ToggleRight, Filter, Globe, Play, Film } from 'lucide-react'
+import { Sparkles, CheckCircle, RefreshCw, Tv, Info, ToggleLeft, ToggleRight, Filter, Globe, Play } from 'lucide-react'
 
 const REGIONS = [
-  { code: 'IN', label: 'India (IN)', desc: 'Netflix, Hotstar, Prime, Zee5, SonyLIV', flags: '🇮🇳' },
-  { code: 'US', label: 'United States (US)', desc: 'Netflix, Disney+, Hulu, Prime, Max', flags: '🇺🇸' },
+  {
+    code: 'IN',
+    label: 'India (IN)',
+    desc: 'Netflix, Hotstar, Prime, Zee5, SonyLIV',
+    flags: '🇮🇳',
+    providers: ['Netflix', 'Disney+ Hotstar', 'Amazon Prime Video', 'Zee5', 'SonyLIV'],
+  },
+  {
+    code: 'US',
+    label: 'United States (US)',
+    desc: 'Netflix, Disney+, Hulu, Prime, Max',
+    flags: '🇺🇸',
+    providers: ['Netflix', 'Disney+', 'Hulu', 'Amazon Prime Video', 'Max'],
+  },
 ]
 
 function Mode2Insight({ result }) {
-  if (!result || !result.slate || result.slate.length === 0) return null
+  const slate = result?.watchwise_slate || result?.slate || []
+  if (!result || slate.length === 0) return null
 
-  const langSet = new Set(result.slate.map(m => m.language).filter(Boolean))
-  const genreSet = new Set(result.slate.flatMap(m => m.genres.split(', ')))
+  const selectedProviders = result.selected_providers || result.region?.platforms || []
+  const genreSet = new Set(slate.flatMap(m => m.genres.split(', ')))
 
   return (
     <div className="relative overflow-hidden bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent border border-emerald-500/20 rounded-2xl p-6 shadow-xl leading-relaxed">
@@ -30,12 +43,12 @@ function Mode2Insight({ result }) {
           <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Constraint Match</div>
         </div>
         <div className="bg-slate-900/80 border border-emerald-500/10 rounded-xl p-4 text-center">
-          <div className="text-2xl font-black text-indigo-400">{result.slate.length}</div>
+          <div className="text-2xl font-black text-indigo-400">{slate.length}</div>
           <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Movies Emitted</div>
         </div>
         <div className="bg-slate-900/80 border border-emerald-500/10 rounded-xl p-4 text-center">
-          <div className="text-2xl font-black text-cyan-400">{langSet.size}</div>
-          <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Languages</div>
+          <div className="text-2xl font-black text-cyan-400">{selectedProviders.length}</div>
+          <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">OTT Services</div>
         </div>
         <div className="bg-slate-900/80 border border-emerald-500/10 rounded-xl p-4 text-center">
           <div className="text-2xl font-black text-amber-400">{genreSet.size}</div>
@@ -50,7 +63,7 @@ function Mode2Insight({ result }) {
             <span>Guaranteed Legitimate Selection</span>
           </div>
           <p className="text-slate-400 leading-normal">
-            Every file recommendation matches your subscribed platforms, orig_language set, certification limits, and runtime windows. Traditional systems struggle to satisfy strict constraints without completely sacrificing user personalization.
+            Every recommendation is limited to the OTT services selected above, then checked for certification and runtime. The baseline and WatchWise slate now compete inside the same streamable catalog slice.
           </p>
         </div>
 
@@ -74,9 +87,12 @@ export default function Mode2() {
   const [groups, setGroups] = useState([])
   const [selectedGid, setSelectedGid] = useState(null)
   const [allowTeen, setAllowTeen] = useState(true)
+  const [selectedProviders, setSelectedProviders] = useState(REGIONS[0].providers)
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
   const [showFiltersDeepDive, setShowFiltersDeepDive] = useState(false)
+  const currentRegion = REGIONS.find((r) => r.code === region) || REGIONS[0]
+  const canRun = Boolean(selectedGid) && selectedProviders.length > 0
 
   useEffect(() => {
     fetchGroups(kind).then((data) => {
@@ -85,17 +101,36 @@ export default function Mode2() {
     })
   }, [kind])
 
+  useEffect(() => {
+    setSelectedProviders(currentRegion.providers)
+    setResult(null)
+  }, [region])
+
+  const toggleProvider = (provider) => {
+    setResult(null)
+    setSelectedProviders((prev) => {
+      if (prev.includes(provider)) {
+        return prev.filter((p) => p !== provider)
+      }
+      return [...prev, provider]
+    })
+  }
+
   const handleRecommend = async () => {
-    if (!selectedGid) return
+    if (!canRun) return
     setLoading(true)
     setResult(null)
     try {
-      const data = await fetchMode2(selectedGid, region, allowTeen)
+      const data = await fetchMode2(selectedGid, region, allowTeen, selectedProviders)
       setResult(data)
     } finally {
       setLoading(false)
     }
   }
+
+  const watchwiseSlate = result?.watchwise_slate || result?.slate || []
+  const baselineSlate = result?.baseline_slate || []
+  const visibleProviders = result?.selected_providers || selectedProviders
 
   return (
     <div className="space-y-8 font-sans text-slate-100">
@@ -109,7 +144,7 @@ export default function Mode2() {
               In reality, a wonderful movie recommendation is useless if you don't subscribe to the streaming service, or if the film runs 3 hours on a weeknight, or has certifications entirely unsafe for the youngsters in the living room.
             </p>
             <p className="text-xs text-slate-400 mt-2 leading-relaxed">
-              WatchWise Mode 2 handles these factors head-on by feeding generated candidate spaces through complex real-world filters: <strong className="text-cyan-400 font-medium">localized OTT provider availability</strong>, <strong className="text-cyan-400 font-medium">preferred language vectors</strong>, <strong className="text-cyan-400 font-medium">certification brackets</strong>, and <strong className="text-cyan-400 font-medium">runtime strictness</strong>.
+              WatchWise Mode 2 handles these factors head-on by feeding generated candidate spaces through complex real-world filters: <strong className="text-cyan-400 font-medium">localized OTT provider availability</strong>, <strong className="text-cyan-400 font-medium">certification brackets</strong>, and <strong className="text-cyan-400 font-medium">runtime strictness</strong>.
             </p>
           </div>
 
@@ -164,7 +199,7 @@ export default function Mode2() {
                 <div className="font-bold text-slate-200 uppercase tracking-widest text-[10px] text-cyan-400 pb-1 border-b border-white/[0.04]">Aggressive Constraints Imposed</div>
                 <ul className="space-y-1 list-disc list-inside text-slate-300 text-[11px]">
                   <li><strong>Subscribed OTT:</strong> Retains only movies streaming in Region on user services (via TMDb API)</li>
-                  <li><strong>Local original_language:</strong> Retains movies translated into accepted region sets</li>
+                  <li><strong>Provider intersection:</strong> Keeps movies found on at least one selected OTT subscription</li>
                   <li><strong>Strict limit:</strong> Runtime must remain under max_runtime_min (e.g. 150m)</li>
                   <li><strong>Family Rating:</strong> Must match CBFC (U/UA) or MPAA (G/PG) ratings</li>
                 </ul>
@@ -175,7 +210,7 @@ export default function Mode2() {
               </div>
             </div>
             <div className="p-3 bg-cyan-950/10 border border-cyan-500/15 rounded-lg text-[11px] text-slate-400">
-              <strong>Multilingual Support:</strong> Highly crucial in regions such as India. Filtering across Hindi, English, and local South-Indian movies while checking Zee5, SonyLIV, Hotstar concurrently remains a core task of the constraint layer.
+              <strong>Provider-aware filtering:</strong> The selected subscriptions become hard constraints, so baseline and WatchWise are judged only on movies that can actually stream tonight.
             </div>
           </div>
         )}
@@ -227,6 +262,48 @@ export default function Mode2() {
                 )
               })}
             </div>
+            <div className="mt-3 rounded-xl border border-white/5 bg-slate-950/70 p-3">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  OTT subscriptions
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedProviders(currentRegion.providers)
+                    setResult(null)
+                  }}
+                  className="text-[9.5px] font-bold uppercase tracking-wider text-cyan-300 hover:text-cyan-200"
+                >
+                  Select all
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {currentRegion.providers.map((provider) => {
+                  const checked = selectedProviders.includes(provider)
+                  return (
+                    <button
+                      key={provider}
+                      type="button"
+                      onClick={() => toggleProvider(provider)}
+                      className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[10px] font-bold transition-all ${
+                        checked
+                          ? 'border-cyan-400/40 bg-cyan-500/15 text-cyan-200'
+                          : 'border-white/10 bg-slate-900 text-slate-500 hover:border-white/20 hover:text-slate-300'
+                      }`}
+                    >
+                      <CheckCircle className={`h-3.5 w-3.5 ${checked ? 'text-cyan-300' : 'text-slate-600'}`} />
+                      <span>{provider}</span>
+                    </button>
+                  )
+                })}
+              </div>
+              {selectedProviders.length === 0 && (
+                <div className="mt-2 text-[10px] font-medium text-rose-300">
+                  Select at least one provider to run constrained inference.
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Group Diff */}
@@ -238,8 +315,8 @@ export default function Mode2() {
                 onChange={(e) => setKind(e.target.value)}
                 className="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-3 text-xs text-slate-100 focus:outline-none focus:border-cyan-500 transition-colors"
               >
-                <option value="divergent font">Divergent (Difficult)</option>
-                <option value="similar font">Similar (Consistent)</option>
+                <option value="divergent">Divergent (Difficult)</option>
+                <option value="similar">Similar (Consistent)</option>
                 <option value="random">Random (Mixed)</option>
               </select>
             </div>
@@ -279,7 +356,7 @@ export default function Mode2() {
 
             <button
               onClick={handleRecommend}
-              disabled={loading}
+              disabled={loading || !canRun}
               className="w-full relative flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-cyan-600 to-indigo-500 text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:from-cyan-500 hover:to-indigo-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-lg shadow-indigo-500/10"
             >
               {loading ? (
@@ -290,7 +367,7 @@ export default function Mode2() {
               ) : (
                 <>
                   <Play className="w-4 h-4 fill-white" />
-                  <span>Generate Constrained slate</span>
+                  <span>{selectedProviders.length === 0 ? 'Select an OTT provider' : 'Generate Constrained slate'}</span>
                 </>
               )}
             </button>
@@ -320,10 +397,45 @@ export default function Mode2() {
             </div>
             
             <p className="text-xs text-slate-400 mb-4 leading-normal">
-              The recommendations listed passed original language check, run-duration metrics, and safety. The <strong className="text-indigo-400">Caters To</strong> tags confirm exactly whose taste vectors are served.
+              Both slates are generated within the selected OTT set: <strong className="text-cyan-300">{visibleProviders.join(', ')}</strong>. The <strong className="text-indigo-400">Caters To</strong> tags show whose taste vectors are most directly served.
             </p>
 
-            <SlateTable slate={result.slate} showFilters={true} pickLabel="Best to stream tonight" />
+            <div className="grid grid-cols-1 2xl:grid-cols-2 gap-5">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h4 className="text-xs font-extrabold uppercase tracking-wider text-rose-300">
+                      Traditional Baseline
+                    </h4>
+                    <p className="text-[10px] text-slate-500">Average predicted score after identical OTT filtering.</p>
+                  </div>
+                  <span className="shrink-0 rounded-md border border-rose-500/20 bg-rose-500/10 px-2 py-1 text-[9.5px] font-black uppercase tracking-wider text-rose-300">
+                    {Math.round((result.baseline_match_rate ?? 0) * 100)}% match
+                  </span>
+                </div>
+                <SlateTable slate={baselineSlate} showFilters={true} pickLabel="Baseline pick under selected OTT" />
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h4 className="text-xs font-extrabold uppercase tracking-wider text-emerald-300">
+                      WatchWise Collective
+                    </h4>
+                    <p className="text-[10px] text-slate-500">Diffusion candidate slate optimized for equitable group fit.</p>
+                  </div>
+                  <span className="shrink-0 rounded-md border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-[9.5px] font-black uppercase tracking-wider text-emerald-300">
+                    {Math.round(result.match_rate * 100)}% match
+                  </span>
+                </div>
+                <SlateTable
+                  slate={watchwiseSlate}
+                  showFilters={true}
+                  pickLabel="WatchWise pick for the group"
+                  pickSummary="collective"
+                />
+              </div>
+            </div>
           </div>
 
           {/* Reading columns card */}
@@ -338,22 +450,7 @@ export default function Mode2() {
             </div>
             <div className="p-4 bg-slate-900/10 border border-white/5 rounded-xl space-y-1">
               <strong className="text-xs text-slate-200 block font-bold">Hard Constraints Met</strong>
-              <p className="text-[11px] text-slate-500 leading-normal">Confirms language, age rating, and clock-runtime parameters. Ready to play tonight without delay.</p>
-            </div>
-          </div>
-
-          {/* Configuration Applied block */}
-          <div className="bg-slate-950 border border-white/5 p-5 rounded-2xl relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-indigo-500/5 to-transparent pointer-events-none rounded-bl-full" />
-            <h3 className="text-xs font-bold text-slate-300 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-              <Info className="w-3.5 h-3.5 text-indigo-400" />
-              <span>Applied JSON Configuration Context</span>
-            </h3>
-            <div className="text-xs text-slate-400 leading-relaxed font-mono bg-slate-900/60 p-3 rounded-xl border border-white/[0.04]">
-              <span className="text-cyan-400 font-bold">{result.region.name}</span> &#123; platforms: ["{result.region.platforms.join('", "')}"], lan: ["{result.region.languages.join('", "')}"], max_minutes: {result.region.max_runtime}, certificates: ["{result.region.family_safe_certs.join('", "')}"] &#125;
-            </div>
-            <div className="text-[10px] text-slate-500 mt-2 font-medium">
-              Provider snap cached {result.snapshot_date}. Real TMDb listings used instantly upon configuring private <code className="bg-slate-900 px-1 text-indigo-300">TMDB_API_KEY</code> environment values.
+              <p className="text-[11px] text-slate-500 leading-normal">Confirms selected OTT availability, age rating, and clock-runtime parameters. Ready to play tonight without delay.</p>
             </div>
           </div>
         </div>

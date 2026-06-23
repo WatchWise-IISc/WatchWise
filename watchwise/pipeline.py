@@ -64,9 +64,9 @@ class Recommender:
 
     # ------------------------------------------------------------------ #
     def _exclude(self, seen: Sequence[int], region: Optional[RegionConfig],
-                 allow_teen: bool) -> set:
+                 allow_teen: bool, providers: Optional[Sequence[str]] = None) -> set:
         ex = set(int(s) for s in (seen or []))
-        ex |= disallowed_movies(self.catalog, region, allow_teen)
+        ex |= disallowed_movies(self.catalog, region, allow_teen, providers)
         return ex
 
     def _pool(self, method: str, members: Sequence[int], exclude: set,
@@ -81,9 +81,10 @@ class Recommender:
     def recommend(self, members: Sequence[int], method: str,
                   seen: Optional[Sequence[int]] = None,
                   region: Optional[RegionConfig] = None, allow_teen: bool = True,
+                  providers: Optional[Sequence[str]] = None,
                   weights: Optional[Dict[str, float]] = None) -> RecResult:
         members = [int(m) for m in members]
-        exclude = self._exclude(seen, region, allow_teen)
+        exclude = self._exclude(seen, region, allow_teen, providers)
         k = self.cfg.slate_size
 
         if method == "avg_baseline":

@@ -1,5 +1,5 @@
 import React from 'react'
-import { Film, Clock, Crown } from 'lucide-react'
+import { Film, Clock, Crown, Tv } from 'lucide-react'
 
 // Map genres to elegant color categories for an immersive palette
 function getGenreStyles(genre) {
@@ -40,6 +40,11 @@ function formatRuntime(mins) {
   const hrs = Math.floor(num / 60)
   const rem = num % 60
   return hrs > 0 ? `${hrs}h ${rem}m` : `${rem}m`
+}
+
+function formatProviders(providers) {
+  if (!providers || providers.length === 0) return []
+  return providers.slice(0, 2)
 }
 
 // The single best film for the group to watch together. This is NOT the highest
@@ -87,11 +92,11 @@ export default function SlateTable({
   const colWidths = showFilters
     ? {
         num: "w-[6%]",
-        title: "w-[30%]",
-        genres: "w-[20%]",
+        title: "w-[28%]",
+        genres: "w-[19%]",
         score: "w-[12%] text-right",
-        caters: "w-[14%] text-left",
-        lang: "w-[6%] text-center",
+        caters: "w-[13%] text-left",
+        ott: "w-[12%] text-left",
         length: "w-[7%] text-right",
         cert: "w-[5%] text-center",
         row: "h-[104px]"
@@ -104,7 +109,7 @@ export default function SlateTable({
         caters: "w-[17%] text-left",
         row: "h-[92px]"
       }
-  const tableMinWidth = showFilters ? 'min-w-[1040px]' : 'min-w-[920px]'
+  const tableMinWidth = showFilters ? 'min-w-[1120px]' : 'min-w-[920px]'
 
   return (
     <div className="overflow-hidden border border-white/5 rounded-xl bg-slate-950/40 backdrop-blur-xl shadow-lg">
@@ -119,7 +124,7 @@ export default function SlateTable({
               <th className={`py-3 px-4 font-bold text-slate-400 text-xs uppercase tracking-wider ${colWidths.caters}`}>Caters To</th>
               {showFilters && (
                 <>
-                  <th className={`py-3 px-4 font-bold text-slate-400 text-xs uppercase tracking-wider ${colWidths.lang}`}>Lang</th>
+                  <th className={`py-3 px-4 font-bold text-slate-400 text-xs uppercase tracking-wider ${colWidths.ott}`}>OTT</th>
                   <th className={`py-3 px-4 font-bold text-slate-400 text-xs uppercase tracking-wider ${colWidths.length}`}>Length</th>
                   <th className={`py-3 px-4 font-bold text-slate-400 text-xs uppercase tracking-wider ${colWidths.cert}`}>Cert</th>
                 </>
@@ -203,10 +208,27 @@ export default function SlateTable({
                   {/* Localized filters detailed */}
                   {showFilters && (
                     <>
-                      <td className={`px-4 align-middle text-center ${colWidths.lang}`}>
-                        <span className="text-xs text-slate-400 font-semibold bg-slate-900 px-2 py-0.5 rounded border border-white/[0.04]">
-                          {movie.language ? movie.language.toUpperCase() : 'EN'}
-                        </span>
+                      <td className={`px-4 align-middle ${colWidths.ott}`}>
+                        {movie.streams_on && movie.streams_on.length > 0 ? (
+                          <div className="flex max-w-full flex-col gap-1" title={movie.streams_on.join(', ')}>
+                            {formatProviders(movie.streams_on).map((provider) => (
+                              <span
+                                key={provider}
+                                className="inline-flex max-w-full items-center gap-1 rounded border border-cyan-500/20 bg-cyan-500/10 px-1.5 py-0.5 text-[9.5px] font-bold text-cyan-300"
+                              >
+                                <Tv className="h-3 w-3 shrink-0" />
+                                <span className="truncate">{provider}</span>
+                              </span>
+                            ))}
+                            {movie.streams_on.length > 2 && (
+                              <span className="text-[9.5px] font-semibold text-slate-500">
+                                +{movie.streams_on.length - 2} more
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-slate-600 text-xs">—</span>
+                        )}
                       </td>
                       <td className={`px-4 align-middle text-right ${colWidths.length}`}>
                         <span className="text-xs text-slate-300 font-medium font-mono flex items-center justify-end gap-1 font-mono">

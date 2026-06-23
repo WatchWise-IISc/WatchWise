@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Sequence
 
 import numpy as np
 import pandas as pd
@@ -102,7 +102,13 @@ class DemoEngine:
             "members": members,
         }
 
-    def _slate_data(self, slate, members, region_code=None) -> List[dict]:
+    def _slate_data(
+        self,
+        slate,
+        members,
+        region_code=None,
+        providers: Optional[Sequence[str]] = None,
+    ) -> List[dict]:
         if not slate:
             return []
         pred = self.mf.predict(members, slate)               # 0.5-5 rating (display)
@@ -136,11 +142,26 @@ class DemoEngine:
                 row["cert"] = r[f"cert_{region_code}"]
                 providers_raw = r.get(f"providers_{region_code}", "[]")
                 if isinstance(providers_raw, str):
-                    row["streams_on"] = json.loads(providers_raw)
+                    streams_on = json.loads(providers_raw)
                 else:
-                    row["streams_on"] = list(providers_raw) if providers_raw else []
+                    streams_on = list(providers_raw) if providers_raw else []
+                if providers:
+                    selected = set(providers)
+                    streams_on = [p for p in streams_on if p in selected]
+                row["streams_on"] = streams_on
             rows.append(row)
         return rows
+
+    def _selected_providers(self, reg, providers: Optional[Sequence[str]]) -> List[str]:
+        if not providers:
+            return list(reg.platforms)
+        allowed = set(reg.platforms)
+        selected = []
+        for provider in providers:
+            clean = provider.strip()
+            if clean in allowed and clean not in selected:
+                selected.append(clean)
+        return selected or list(reg.platforms)
 
     # ---- Mode 1 ---------------------------------------------------------- #
     def run_mode1_api(self, gid: int) -> dict:
@@ -179,24 +200,66 @@ class DemoEngine:
         }
 
     # ---- Mode 2 ---------------------------------------------------------- #
-    def run_mode2_api(self, gid: int, region_code: str, allow_teen: bool) -> dict:
+    def run_mode2_api(
+        self,
+        gid: int,
+        region_code: str,
+        allow_teen: bool,
+        providers: Optional[Sequence[str]] = None,
+    ) -> dict:
         reg = REGIONS[region_code]
+        selected_providers = self._selected_providers(reg, providers)
         g = self._gt[gid]
-        res = self.rec.recommend(g.members, "diffusion_greedy", seen=g.seen,
-                                 region=reg, allow_teen=allow_teen)
-        slate = self._slate_data(res.slate, g.members, region_code=region_code)
+        baseline_res = self.rec.recommend(
+            g.members,
+            "avg_baseline",
+            seen=g.seen,
+            region=reg,
+            allow_teen=allow_teen,
+            providers=selected_providers,
+        )
+        watchwise_res = self.rec.recommend(
+            g.members,
+            "diffusion_greedy",
+            seen=g.seen,
+            region=reg,
+            allow_teen=allow_teen,
+            providers=selected_providers,
+        )
+        baseline_slate = self._slate_data(
+            baseline_res.slate,
+            g.members,
+            region_code=region_code,
+            providers=selected_providers,
+        )
+        watchwise_slate = self._slate_data(
+            watchwise_res.slate,
+            g.members,
+            region_code=region_code,
+            providers=selected_providers,
+        )
 
-        if res.slate:
-            rows = self.catalog_by_idx.loc[res.slate]
-            match_rate = float(np.mean([movie_passes(r, reg, allow_teen)
-                                        for _, r in rows.iterrows()]))
-        else:
-            match_rate = 0.0
+        def slate_match_rate(slate) -> float:
+            if not slate:
+                return 0.0
+            rows = self.catalog_by_idx.loc[slate]
+            return float(np.mean([
+                movie_passes(r, reg, allow_teen, selected_providers)
+                for _, r in rows.iterrows()
+            ]))
+
+        baseline_match_rate = slate_match_rate(baseline_res.slate)
+        watchwise_match_rate = slate_match_rate(watchwise_res.slate)
 
         return {
             "group": self.member_panel_data(gid),
-            "slate": slate,
-            "match_rate": match_rate,
+            "slate": watchwise_slate,
+            "baseline_slate": baseline_slate,
+            "watchwise_slate": watchwise_slate,
+            "match_rate": watchwise_match_rate,
+            "baseline_match_rate": baseline_match_rate,
+            "watchwise_match_rate": watchwise_match_rate,
+            "selected_providers": selected_providers,
             "region": {
                 "code": region_code,
                 "name": reg.name,

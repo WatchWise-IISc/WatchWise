@@ -15,9 +15,17 @@ export async function fetchMode1(gid) {
   return res.json();
 }
 
-export async function fetchMode2(gid, region, allowTeen) {
+export async function fetchMode2(gid, region, allowTeen, providers = []) {
+  const params = new URLSearchParams({
+    gid,
+    region,
+    allow_teen: allowTeen,
+  });
+  if (providers.length > 0) {
+    params.set('providers', providers.join(','));
+  }
   const res = await fetch(
-    `${API_BASE}/mode2/recommend?gid=${gid}&region=${region}&allow_teen=${allowTeen}`
+    `${API_BASE}/mode2/recommend?${params.toString()}`
   );
   return res.json();
 }
