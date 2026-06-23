@@ -79,9 +79,48 @@ export default function App() {
                 The Anti-Veto
               </div>
               <p className="mt-4 max-w-2xl text-sm leading-relaxed text-[#505051] md:text-base">
-                A structural screening interface designed to unify divergent cinema preferences using fairness-aware multi-objective optimization.
+                Pick a movie for a group without letting one person get stranded: WatchWise uses a trained ML model to find 3-5 shared options that balance everyone&apos;s taste while protecting the least-satisfied viewer.
               </p>
-              <div className="mt-5 grid max-w-4xl grid-cols-1 gap-2 font-mono text-[10px] font-extrabold uppercase tracking-widest text-[#404040] md:grid-cols-3">
+              <div className="mt-4">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                  {TABS.map((tab, index) => {
+                    const Icon = tab.icon
+                    const isActive = activeTab === tab.id
+                    return (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => { setActiveTab(tab.id); setInsight(null) }}
+                        className={`relative min-h-[168px] border p-5 text-left transition-colors ${
+                          isActive
+                            ? 'border-[#1A1A1A] bg-[#1A1A1A] text-white shadow-[5px_5px_0_#EA580C]'
+                            : 'border-black/15 bg-white text-[#1A1A1A] shadow-[0_0_0_4px_rgba(26,26,26,0.05)] hover:border-[#1A1A1A]'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <span className={`font-mono text-sm font-extrabold uppercase tracking-widest ${isActive ? 'text-[#EA580C]' : 'text-[#9A9A9A]'}`}>
+                            {String(index + 1).padStart(2, '0')} // {tab.short.replace(' ', '').toUpperCase()}
+                          </span>
+                          {isActive && (
+                            <span className="relative mt-1 flex h-2.5 w-2.5 shrink-0" aria-hidden="true">
+                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#EA580C] opacity-40" />
+                              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[#EA580C]" />
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-9 flex items-center gap-2 font-display text-lg font-extrabold uppercase tracking-tight">
+                          <Icon className={`h-4 w-4 ${isActive ? 'text-white' : 'text-[#1A1A1A]'}`} />
+                          {tab.label}
+                        </div>
+                        <div className={`mt-3 text-sm leading-relaxed ${isActive ? 'text-white/75' : 'text-[#606060]'}`}>
+                          {tab.desc}
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+              <div className="mt-6 grid max-w-4xl grid-cols-1 gap-2 border-t border-black/10 pt-5 font-mono text-[10px] font-extrabold uppercase tracking-widest text-[#404040] md:grid-cols-3">
                 <div className="border-l-4 border-[#EA580C] bg-white px-3 py-2">
                   Custom model: 128D MF embeddings trained on MovieLens-25M with a 20% hidden-rating holdout.
                 </div>
@@ -166,42 +205,6 @@ export default function App() {
             </div>
           </div>
 
-          <nav className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-3">
-            {TABS.map((tab, index) => {
-              const Icon = tab.icon
-              const isActive = activeTab === tab.id
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => { setActiveTab(tab.id); setInsight(null) }}
-                  className={`group border p-4 text-left transition-colors ${
-                    isActive
-                      ? 'border-[#1A1A1A] bg-[#1A1A1A] text-white'
-                      : 'border-black/20 bg-[#FAF9F6] text-[#1A1A1A] hover:border-[#1A1A1A]'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <div className={`font-mono text-[10px] font-extrabold uppercase tracking-widest ${isActive ? 'text-white/65' : 'text-[#EA580C]'}`}>
-                        {String(index + 1).padStart(2, '0')} // {tab.short.toUpperCase()}
-                      </div>
-                      <div className="mt-2 flex items-center gap-2 font-display text-lg font-extrabold uppercase tracking-tight">
-                        <Icon className="h-4 w-4" />
-                        {tab.label}
-                      </div>
-                      <div className={`mt-1 text-xs ${isActive ? 'text-white/70' : 'text-[#606060]'}`}>
-                        {tab.desc}
-                      </div>
-                    </div>
-                    <span className={`font-mono text-[10px] font-extrabold ${isActive ? 'text-[#EA580C]' : 'text-[#909090]'}`}>
-                      {tab.short.toUpperCase()}
-                    </span>
-                  </div>
-                </button>
-              )
-            })}
-          </nav>
         </header>
 
         <main className="flex-1 py-8">
