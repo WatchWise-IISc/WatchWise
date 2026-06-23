@@ -13,7 +13,8 @@ measured, not asserted.
 
 `WATCHWISE_MASTER_SPEC.md` is the **canonical specification** (when code and spec disagree, the spec
 wins unless a newer decision is recorded there). `README.md` is the runnable overview; `REPORT.md` is
-the academic write-up with the final numbers.
+the academic write-up with the final numbers. `AGENTS.md` carries overlapping repo conventions (style,
+commit/PR norms) — keep the two in sync when either changes.
 
 ## Commands
 
@@ -45,10 +46,10 @@ python scripts/07_phase_compare.py       # optional: Phase 1 vs Phase 2 once bot
 python tests/test_smoke.py               # or: python -m pytest tests/ -q   (6 invariant tests)
 
 # App — React + FastAPI (the primary UI; offline, reads cached artifacts only)
-./app/start.sh                           # FastAPI :8000 + Vite dev :5173; phase2 by default
+./app/start.sh                           # FastAPI :18790 + Vite dev :18791; phase2 by default
 ./app/start.sh --phase phase1            # small dataset
 ./scripts/fetch_cache.sh phase2          # pull the ~416 MB phase2 cache from the GitHub Release
-uvicorn app.api.main:app --reload        # backend only (frontend dev: cd app/frontend && npm run dev)
+uvicorn app.api.main:app --port 18790 --reload   # backend only (Vite proxies /api → :18790)
 
 ```
 
@@ -88,8 +89,9 @@ comparing rerankers (`*_greedy` vs `*_rl`) holds the pool fixed.
 ## The app (React + FastAPI — thin layer over the pipeline)
 
 The UI never re-implements recommendation logic; it loads the cached artifacts once and calls
-`Recommender.recommend`. Two halves talk over HTTP; Vite proxies `/api` → `:8000` (`vite.config.js`),
-so frontend code calls bare `/api/...` (`app/frontend/src/api.js`) and CORS is open only to localhost.
+`Recommender.recommend`. Two halves talk over HTTP; Vite (`:18791`) proxies `/api` → `:18790`
+(`vite.config.js`), so frontend code calls bare `/api/...` (`app/frontend/src/api.js`) and CORS is open
+only to localhost.
 
 - **`app/api/engine.py::DemoEngine`** is the single source of app behaviour. Its `__init__` loads every
   cached artifact (`mf.npz`, `text_embeddings.npy`, `catalog.parquet`, `train_ratings.parquet`,
@@ -105,6 +107,11 @@ so frontend code calls bare `/api/...` (`app/frontend/src/api.js`) and CORS is o
   `start.sh` runs `scripts/fetch_cache.sh`, which downloads `ml-25m-cache.tar.gz` from the GitHub
   Release `phase2-cache` (repo `WATCHWISE_REPO`, default `kvamsi-iisc/WatchWise`) on first run. Only
   phase2 is published; phase1 regenerates via the pipeline. App startup fails without this cache.
+- **`swiss-grid-ui/` is a design prototype, not the app.** A standalone, untracked TypeScript mockup
+  (the "Swiss grid" visual direction) built on hardcoded fixtures in `swiss-grid-ui/data.ts` — it has
+  no API calls and isn't wired into the build (its `App.tsx` imports a `./components/` path that doesn't
+  exist there). The live app is `app/frontend/src/` (`.jsx`, real `/api`). Treat it as a visual reference
+  when porting the look into the real components; don't try to run or ship it as-is.
 
 ## Invariants that protect the result (do not break these)
 

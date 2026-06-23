@@ -55,7 +55,8 @@ each caches its output under `data/cache/<dataset>/`, and results land in `resul
 ```bash
 pip install -r requirements.txt
 ./app/start.sh                       # phase2 by default; --phase phase1 for the small dataset
-# Frontend: http://localhost:5173   Backend: http://localhost:8000/docs
+# Frontend: http://localhost:18791   Backend: http://localhost:18790/docs
+# (start.sh always uses these custom ports to avoid clashing with default Vite:5173 / uvicorn:8000)
 ```
 
 `start.sh` installs the frontend deps (`npm install`) and, on first run, **downloads the

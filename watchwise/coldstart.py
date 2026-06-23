@@ -8,7 +8,7 @@ sensible compromise for a new family" — never a measured result.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, List
 
 import numpy as np
@@ -23,6 +23,7 @@ LOVE_THRESHOLD = 4.0
 class ColdProfile:
     name: str
     genres: List[str]
+    favorite_movie_ids: List[int] = field(default_factory=list)
 
 
 # A few preset families for the demo dropdown.
@@ -60,7 +61,7 @@ def _loved_genre_profile(train_df: pd.DataFrame, movies: pd.DataFrame):
     per_user["n_loved"] = per_user["n_loved"].fillna(0)
     genres = movies[["m_idx", "genre_list"]].explode("genre_list").dropna()
     loved_long = loved.merge(genres, on="m_idx")        # (u_idx, m_idx, genre_list)
-    return per_user, loved_long
+    return per_user, loved, loved_long
 
 
 def map_profiles_to_users(profiles: List[ColdProfile], train_df: pd.DataFrame,
@@ -79,7 +80,7 @@ def map_profiles_to_users(profiles: List[ColdProfile], train_df: pd.DataFrame,
     18-rating thriller fan). Specialisation + depth gating fixes that while staying
     fully offline and label-honest (still illustrative, never a measured result).
     """
-    per_user, loved_long = _loved_genre_profile(train_df, movies)
+    per_user, loved, loved_long = _loved_genre_profile(train_df, movies)
     # Prefer deep, specialised, well-rated users; each tier loosens a gate so a pick
     # always exists, even for sparse genres like Documentary/Musical.
     tiers = [(min_ratings, min_genre_hits), (min_ratings, 2),
@@ -88,16 +89,36 @@ def map_profiles_to_users(profiles: List[ColdProfile], train_df: pd.DataFrame,
     chosen: List[int] = []
     for prof in profiles:
         genres = set(prof.genres)
+        favorite_movie_ids = {
+            int(m)
+            for m in getattr(prof, "favorite_movie_ids", [])
+            if pd.notna(m)
+        }
         hits = (loved_long.loc[loved_long.genre_list.isin(genres)]
                 .groupby("u_idx")["m_idx"].nunique())
+        if favorite_movie_ids:
+            favorite_hits = (loved.loc[loved.m_idx.isin(favorite_movie_ids)]
+                             .groupby("u_idx")["m_idx"].nunique())
+        else:
+            favorite_hits = pd.Series(dtype=float)
         df = per_user.copy()
         df["hits"] = hits.reindex(df.index).fillna(0)
+        df["favorite_hits"] = favorite_hits.reindex(df.index).fillna(0)
+        df["interest_hits"] = df["hits"] + df["favorite_hits"]
         df["share"] = df["hits"] / df["n_loved"].where(df["n_loved"] > 0, np.nan)
-        df = df.sort_values(["share", "hits"], ascending=False)  # purity, then depth
+        df["favorite_share"] = (
+            df["favorite_hits"] / max(1, len(favorite_movie_ids))
+            if favorite_movie_ids else 0.0
+        )
+        df["score"] = df["share"].fillna(0.0) + 1.5 * df["favorite_share"]
+        df = df.sort_values(
+            ["score", "favorite_hits", "share", "hits"],
+            ascending=False,
+        )  # favorite overlap, purity, then depth
 
         pick = None
         for mr, mh in tiers:
-            elig = df.index[(df.n_rat >= mr) & (df.hits >= mh)
+            elig = df.index[(df.n_rat >= mr) & (df.interest_hits >= mh)
                             & (~df.index.isin(chosen))]
             if len(elig):
                 pick = int(elig[0])

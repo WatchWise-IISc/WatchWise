@@ -8,7 +8,8 @@ ablations in spec §10.4:
     nn_greedy         traditional NN candidates  + greedy fairness reranker
     diffusion_greedy  diffusion candidates       + greedy fairness reranker   (swap test)
     nn_rl             traditional NN candidates  + RL slate-builder
-    diffusion_rl      diffusion candidates       + RL slate-builder           (headline)
+    diffusion_rl      diffusion candidates       + RL slate-builder
+    hybrid_rl         NN + diffusion candidates  + RL slate-builder           (demo headline)
 
 Ablation fairness is enforced structurally: candidate-generation comparisons share
 the reranker + filters; reranker comparisons share the pool + filters.
@@ -38,6 +39,7 @@ METHOD_LABELS = {
     "diffusion_greedy": "Diffusion candidates + fairness reranker",
     "nn_rl": "NN candidates + RL slate-builder",
     "diffusion_rl": "Diffusion candidates + RL slate-builder",
+    "hybrid_rl": "Hybrid NN + diffusion + RL slate-builder",
 }
 
 
@@ -71,6 +73,25 @@ class Recommender:
 
     def _pool(self, method: str, members: Sequence[int], exclude: set,
               pool_size: int) -> List[int]:
+        if method.startswith("hybrid"):
+            if self.diff is None:
+                raise ValueError("hybrid method requested but no diffusion model loaded")
+            nn_pool = self.space.nn_candidates(members, pool_size, exclude)
+            diff_pool = self.space.diffusion_candidates(self.diff, members, pool_size, exclude)
+            merged: List[int] = []
+            seen = set()
+            for i in range(max(len(nn_pool), len(diff_pool))):
+                for pool in (nn_pool, diff_pool):
+                    if i >= len(pool):
+                        continue
+                    m = int(pool[i])
+                    if m in seen:
+                        continue
+                    merged.append(m)
+                    seen.add(m)
+                    if len(merged) >= pool_size:
+                        return merged
+            return merged
         if method.startswith("diffusion"):
             if self.diff is None:
                 raise ValueError("diffusion method requested but no diffusion model loaded")

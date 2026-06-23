@@ -15,6 +15,11 @@ done
 
 export WATCHWISE_PHASE="$PHASE"
 
+# Custom ports chosen to avoid the very common defaults (Vite 5173, uvicorn 8000)
+# and reduce collisions with other dev servers.
+BACKEND_PORT=18790
+FRONTEND_PORT=18791
+
 echo "=== WatchWise 2.0 (phase=$PHASE) ==="
 echo ""
 
@@ -28,19 +33,33 @@ if [ ! -d "app/frontend/node_modules" ]; then
   cd app/frontend && npm install && cd ../..
 fi
 
-echo "[start] Starting FastAPI backend on :18790 ..."
-uvicorn app.api.main:app --host 0.0.0.0 --port 18790 --reload &
+# Kill stale processes on the custom ports we use (avoids "address already in use"
+# and surprises from previous runs on 5173/8000 or leftover uvicorn/vite).
+echo "[start] Cleaning up any stale listeners on :$BACKEND_PORT and :$FRONTEND_PORT..."
+for p in $BACKEND_PORT $FRONTEND_PORT; do
+  pids=$(lsof -ti:$p 2>/dev/null || true)
+  if [ -n "$pids" ]; then
+    echo "[start]   Killing stale PID(s) on :$p -> $pids"
+    echo "$pids" | xargs kill -9 2>/dev/null || true
+    sleep 0.3
+  fi
+done
+
+echo "[start] Starting FastAPI backend on :$BACKEND_PORT ..."
+uvicorn app.api.main:app --host 0.0.0.0 --port $BACKEND_PORT --reload &
 BACKEND_PID=$!
 
-echo "[start] Starting React frontend on :5173 ..."
+echo "[start] Starting React frontend on :$FRONTEND_PORT (vite.config.js) ..."
 cd app/frontend && npm run dev &
 FRONTEND_PID=$!
 cd ../..
 
 echo ""
 echo "=== Ready ==="
-echo "  Frontend: http://localhost:18791"
-echo "  Backend:  http://localhost:18790/docs"
+echo "  Frontend: http://localhost:$FRONTEND_PORT"
+echo "  Backend:  http://localhost:$BACKEND_PORT/docs"
+echo ""
+echo "  (Vite proxies /api/* -> backend :$BACKEND_PORT; CORS restricted to localhost:$FRONTEND_PORT)"
 echo ""
 echo "Press Ctrl+C to stop both."
 

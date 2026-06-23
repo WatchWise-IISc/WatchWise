@@ -1,278 +1,257 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import Mode1 from './components/Mode1.jsx'
 import Mode2 from './components/Mode2.jsx'
 import Mode3 from './components/Mode3.jsx'
-import { Layers, Tv, Sparkles, Brain, Info, Activity, Compass, Flame, Film } from 'lucide-react'
+import { Activity, Film, Info, Layers, Sparkles, Tv, X } from 'lucide-react'
 
 const TABS = [
-  { 
-    id: 'mode1', 
-    label: 'Core Science', 
+  {
+    id: 'mode1',
+    label: 'Fairness Benchmark',
     short: 'Mode 1',
-    desc: 'Measured comparison & metrics', 
+    desc: 'Measured fairness and relevance evidence',
     icon: Activity,
-    badge: 'Validated',
-    color: 'from-violet-500 to-indigo-500'
   },
-  { 
-    id: 'mode2', 
-    label: 'OTT + Filters', 
+  {
+    id: 'mode2',
+    label: 'OTT Constraints',
     short: 'Mode 2',
-    desc: 'Streamable on selected OTTs',
+    desc: 'Streamable slates under real filters',
     icon: Tv,
-    badge: 'Practical',
-    color: 'from-cyan-500 to-indigo-500'
   },
-  { 
-    id: 'mode3', 
-    label: 'Cold Start', 
+  {
+    id: 'mode3',
+    label: 'Cold Start Builder',
     short: 'Mode 3',
-    desc: 'Instant profile mapping', 
+    desc: 'Custom members, genres, and proxy mapping',
     icon: Sparkles,
-    badge: 'Onboarding',
-    color: 'from-amber-500 to-orange-500'
   },
 ]
+
+const HEADER_STATS = {
+  mode1: [
+    { value: '25M', label: 'real movielens ratings', detail: 'Grounded in 25M authentic ratings (ml-25m). No synthetic preferences — real users, real held-out likes.' },
+    { value: '3×', label: 'ndcg@5 vs nn retrieval', detail: 'On divergent groups, diffusion candidates + reranker recover ~3× more unseen relevant movies than pure NN retrieval.' },
+    { value: 'DDPM', label: 'group-conditioned diffusion', detail: 'DDPM denoiser is conditioned on the group centroid embedding, generating compromise candidates that live between member tastes.' },
+    { value: 'REINFORCE', label: 'slate-building rl', detail: 'Policy learns to pick full 5-movie slates optimizing composite reward (mean + min-member + diversity) in one sequential pass.' },
+    { value: 'W2+MIN', label: 'worst-off fairness term', detail: 'Reward = w1·avg + w2·min(sat) + diversity terms. The min term explicitly lifts the usually-ignored family member.' },
+    { value: '70/15/15', label: 'disjoint group splits', detail: 'RL trains on 70% of synthetic families and is measured only on completely unseen groups — no group-level leakage.' },
+  ],
+  mode2: [
+    { value: '3', label: 'hard filters · ott · runtime · age', detail: 'OTT platforms, runtime ≤150 min and family-safe certs are applied to the pool before diffusion or scoring ever run.' },
+    { value: 'PRE', label: 'filters before scoring', detail: 'Constraints shrink the candidate universe that the generator and reranker consider — guarantees every slate is watchable tonight.' },
+    { value: '4', label: 'method stacks scored', detail: 'Baseline / NN / diffusion / RL all evaluated on identical filtered pools so differences are apples-to-apples.' },
+    { value: 'Hit@5', label: 'hidden relevance check', detail: 'Even under real-world filters we still report non-circular Hit@5 against each member’s held-out ratings.' },
+    { value: 'W2', label: 'fairness still active', detail: 'Max-min protection remains inside the reranker even when OTT + age hard gates are present.' },
+    { value: 'IN/US', label: 'region aware', detail: 'Same engine serves India (Netflix/Hotstar/Prime/Zee5/SonyLIV) and US (Netflix/Prime/Hulu/Max) via cached providers.' },
+  ],
+  mode3: [
+    { value: 'CUSTOM', label: 'dynamic member sets', detail: 'Add or remove members and select genres on the fly; each submitted profile triggers a fresh proxy match and slate inference.' },
+    { value: '0', label: 'required prior ratings', detail: 'Cold-start families need zero prior ratings; a short hand-authored profile is projected into the existing MF space.' },
+    { value: 'PROXY', label: 'embedding space match', detail: 'New members are mapped to nearest real MovieLens users by content + stated taste — then treated as a normal group.' },
+    { value: 'HYBRID', label: 'nn + diffusion pool', detail: 'Cold-start uses both retrieval and generated candidates so the slate isn’t limited to what similar users already rated.' },
+    { value: 'RL', label: 'fair cold-start slate', detail: 'Even with proxy users the REINFORCE policy still protects the worst-off member of the new family.' },
+    { value: 'K=5', label: 'compact watchlist', detail: 'Always returns a tight 3-5 movie slate — the size families can realistically decide on for “tonight”.' },
+  ],
+}
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('mode1')
   const [showDocSidebar, setShowDocSidebar] = useState(false)
+  const [insight, setInsight] = useState(null)
+  const activeMeta = TABS.find((tab) => tab.id === activeTab) || TABS[0]
+  const headerStats = HEADER_STATS[activeTab] || HEADER_STATS.mode1
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans relative overflow-x-hidden select-none">
-      {/* Absolute Ambient Background Lights */}
-      <div className="absolute top-0 left-0 w-full h-full pointer-events-none z-0 overflow-hidden">
-        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-violet-600/10 blur-[150px] rounded-full" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-indigo-500/5 blur-[180px] rounded-full" />
-        <div className="absolute top-[40%] right-[10%] w-[35%] h-[35%] bg-cyan-500/5 blur-[150px] rounded-full" />
-      </div>
-
-      <div className="flex flex-col lg:flex-row relative z-10 min-h-screen">
-        {/* SIDEBAR NAVIGATION */}
-        <aside className="w-full lg:w-80 shrink-0 border-b lg:border-b-0 lg:border-r border-slate-800/60 bg-slate-900/40 backdrop-blur-xl flex flex-col justify-between p-6">
-          <div className="space-y-8">
-            {/* Logo */}
-            <div className="flex items-center gap-3">
-              <div className="relative flex items-center justify-center w-11 h-11 rounded-xl bg-gradient-to-tr from-violet-600 to-indigo-500 shadow-lg shadow-indigo-500/20">
-                <Film className="w-6 h-6 text-white" />
-                <span className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full border-2 border-slate-900 animate-pulse" />
+    <div className="min-h-screen grid-bg-swiss text-[#1A1A1A] selection:bg-[#EA580C] selection:text-white">
+      <div className="mx-auto flex min-h-screen w-full max-w-[1500px] flex-col px-4 py-4 md:px-8 md:py-8">
+        <header className="border-b-2 border-[#1A1A1A] pb-6">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-stretch">
+            <div className="lg:col-span-7">
+              <div className="mb-4 inline-flex items-center gap-2 bg-[#1A1A1A] px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-widest text-white">
+                <Film className="h-3.5 w-3.5" />
+                Fair group recommender
               </div>
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <h1 className="text-xl font-black tracking-tight bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-transparent">
-                    WatchWise
-                  </h1>
-                  <span className="text-[10px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-1.5 py-0.2 rounded-md">
-                    2.0
-                  </span>
-                </div>
-                <p className="text-[10px] text-slate-400 tracking-wide font-medium">
-                  FAIR GROUP RECOMMENDER
-                </p>
+              <h1 className="swiss-display text-6xl md:text-8xl xl:text-9xl">
+                WatchWise
+              </h1>
+              <div className="mt-3 font-display text-2xl font-extrabold uppercase leading-tight tracking-tight text-[#1A1A1A] md:text-4xl">
+                The Anti-Veto
               </div>
-            </div>
-
-            {/* Scientific Statement */}
-            <div className="p-4 rounded-xl bg-slate-800/40 border border-white/5 space-y-2.5">
-              <div className="flex items-center gap-2 text-xs font-semibold text-slate-200">
-                <Brain className="w-4 h-4 text-indigo-400" />
-                <span>The Core Scientific Claim</span>
-              </div>
-              <p className="text-[11px] text-slate-400 leading-relaxed">
-                Does a <strong className="text-violet-400 font-medium">conditional diffusion generator</strong> produce fairer movie choices than <strong className="text-cyan-400 font-medium font-mono">nearest-neighbours</strong> when fed into an identical reranker?
+              <p className="mt-4 max-w-2xl text-sm leading-relaxed text-[#505051] md:text-base">
+                A structural screening interface designed to unify divergent cinema preferences using fairness-aware multi-objective optimization.
               </p>
+              <div className="mt-5 grid max-w-4xl grid-cols-1 gap-2 font-mono text-[10px] font-extrabold uppercase tracking-widest text-[#404040] md:grid-cols-3">
+                <div className="border-l-4 border-[#EA580C] bg-white px-3 py-2">
+                  Custom model: 128D MF embeddings trained on MovieLens-25M with a 20% hidden-rating holdout.
+                </div>
+                <div className="border-l-4 border-[#1A1A1A] bg-white px-3 py-2">
+                  Generator: conditional DDPM, 500 noise steps, 120 training epochs, 100-step DDIM inference.
+                </div>
+                <div className="border-l-4 border-[#EA580C] bg-white px-3 py-2">
+                  Slate policy: hybrid NN plus diffusion pool, 120 candidates, 20K RL episodes, K=5 fairness reward.
+                </div>
+              </div>
             </div>
 
-            {/* Navigation Tabs */}
-            <nav className="space-y-2">
-              <div className="text-[10px] font-bold tracking-wider text-slate-500 uppercase px-2 mb-3">
-                Evaluation Engines
+            <div className="swiss-panel p-4 font-mono text-xs lg:col-span-5">
+              <div className="flex items-center justify-between border-b border-black/15 pb-2">
+                <span className="text-[#707070]">WATCHWISE MODEL CARD</span>
+                <span className="font-extrabold uppercase tracking-widest text-[#EA580C]">{activeMeta.short}</span>
               </div>
-              {TABS.map((tab) => {
-                const Icon = tab.icon
-                const isActive = activeTab === tab.id
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`w-full flex items-center gap-3.5 p-3 rounded-xl transition-all duration-300 text-left relative group ${
-                      isActive
-                        ? 'bg-slate-800 border-white/10 text-white shadow-xl shadow-slate-950/20'
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/50 border border-transparent'
-                    }`}
-                  >
-                    {/* Left glow line */}
-                    {isActive && (
-                      <span className="absolute left-0 top-3 bottom-3 w-1 bg-gradient-to-b from-violet-500 to-indigo-500 rounded-full" />
-                    )}
-
-                    <div className={`p-2 rounded-lg transition-all duration-300 ${
-                      isActive 
-                        ? 'bg-gradient-to-tr ' + tab.color + ' text-white shadow-md' 
-                        : 'bg-slate-800/60 text-slate-400 group-hover:text-slate-300'
-                    }`}>
-                      <Icon className="w-4 h-4" />
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-bold tracking-tight">{tab.label}</span>
-                        <span className={`text-[9px] font-bold rounded-full px-1.5 py-0.5 border ${
-                          isActive 
-                            ? 'bg-white/10 border-white/10 text-white' 
-                            : 'bg-slate-800/40 border-slate-700/50 text-slate-500'
-                        }`}>
-                          {tab.badge}
-                        </span>
+              <div className="mt-3 grid grid-cols-2 lg:grid-cols-3 gap-2">
+                {headerStats.map((stat) => {
+                  const isActive = insight && insight.label === stat.label && insight.tab === activeTab
+                  return (
+                    <div
+                      key={`${activeTab}-${stat.label}`}
+                      onClick={() => setInsight({ ...stat, tab: activeTab })}
+                      className={`cursor-pointer border bg-white px-3 py-2 transition-all active:scale-[0.985] ${isActive ? 'border-[#EA580C] ring-1 ring-[#EA580C]/30 bg-[#fffaf5]' : 'border-black/15 hover:border-[#EA580C]/50 hover:bg-[#faf8f4]'}`}
+                    >
+                      <div className="font-display text-lg lg:text-xl font-extrabold uppercase tracking-tighter text-[#1A1A1A]">
+                        {stat.value}
                       </div>
-                      <div className={`text-[10px] truncate mt-0.5 ${isActive ? 'text-slate-300' : 'text-slate-500'}`}>
+                      <div className="mt-0.5 text-[9px] font-extrabold uppercase tracking-widest text-[#606060]">
+                        {stat.label}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+              {insight && (
+                <div className="mt-2 border-l-2 border-[#EA580C] bg-[#fffaf5] px-2 py-1 text-[9px] leading-snug tracking-normal text-[#404040]">
+                  <span className="font-extrabold text-[#B84309]">{insight.value} {insight.label.toUpperCase()}</span> — {insight.detail}
+                </div>
+              )}
+              {!insight && (
+                <div className="mt-2 border-l-2 border-[#EA580C]/40 bg-white/60 px-2 py-1 text-[9px] leading-snug tracking-normal text-[#505050]">
+                  Click any tile to see how this element drives WatchWise’s fairness-aware group compromise.
+                </div>
+              )}
+              <div className="mt-3 border-l-4 border-[#EA580C] bg-white px-3 py-2 text-[10px] font-extrabold uppercase tracking-widest text-[#404040]">
+                MF embeddings, conditional diffusion, fairness-aware RL slate.
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDocSidebar(true)}
+                className="mt-4 w-full swiss-button-secondary"
+              >
+                <Info className="h-3.5 w-3.5" />
+                Project Blueprint Spec
+              </button>
+            </div>
+          </div>
+
+          <nav className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-3">
+            {TABS.map((tab, index) => {
+              const Icon = tab.icon
+              const isActive = activeTab === tab.id
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => { setActiveTab(tab.id); setInsight(null) }}
+                  className={`group border p-4 text-left transition-colors ${
+                    isActive
+                      ? 'border-[#1A1A1A] bg-[#1A1A1A] text-white'
+                      : 'border-black/20 bg-[#FAF9F6] text-[#1A1A1A] hover:border-[#1A1A1A]'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <div className={`font-mono text-[10px] font-extrabold uppercase tracking-widest ${isActive ? 'text-white/65' : 'text-[#EA580C]'}`}>
+                        {String(index + 1).padStart(2, '0')} // {tab.short.toUpperCase()}
+                      </div>
+                      <div className="mt-2 flex items-center gap-2 font-display text-lg font-extrabold uppercase tracking-tight">
+                        <Icon className="h-4 w-4" />
+                        {tab.label}
+                      </div>
+                      <div className={`mt-1 text-xs ${isActive ? 'text-white/70' : 'text-[#606060]'}`}>
                         {tab.desc}
                       </div>
                     </div>
-                  </button>
-                )
-              })}
-            </nav>
-          </div>
-
-          {/* Sidebar Footer Details */}
-          <div className="mt-8 lg:mt-0 space-y-4 pt-4 border-t border-slate-900/80">
-            <button
-              onClick={() => setShowDocSidebar(!showDocSidebar)}
-              className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl border border-slate-800 text-xs text-slate-300 hover:text-white hover:bg-slate-900/50 transition-all font-medium"
-            >
-              <Info className="w-4 h-4 text-violet-400" />
-              <span>Project Blueprint Spec</span>
-            </button>
-
-            <div className="flex items-center justify-between text-[10px] text-slate-500">
-              <span className="flex items-center gap-1">
-                <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                API Engine Online
-              </span>
-              <span>v2.0.1</span>
-            </div>
-          </div>
-        </aside>
-
-        {/* MAIN BODY CANVAS */}
-        <div className="flex-1 flex flex-col min-w-0 overflow-y-auto max-h-screen">
-          {/* Header Dashboard Bar */}
-          <header className="border-b border-slate-900/80 bg-slate-950/60 backdrop-blur-md sticky top-0 z-20 px-6 py-4 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-400 font-bold font-mono tracking-wider uppercase bg-slate-900 py-1 px-2.5 rounded-md border border-slate-800">
-                {TABS.find(t => t.id === activeTab)?.short}
-              </span>
-              <span className="text-slate-500">/</span>
-              <h2 className="text-sm font-bold text-slate-200">
-                {TABS.find(t => t.id === activeTab)?.label} — {TABS.find(t => t.id === activeTab)?.desc}
-              </h2>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <div className="hidden sm:flex items-center gap-1.5 bg-indigo-500/5 border border-indigo-400/10 px-3 py-1.5 rounded-full text-xs text-indigo-300 font-medium">
-                <Flame className="w-3.5 h-3.5 text-indigo-400 animate-pulse" />
-                <span>Phase 2 Live Evaluation</span>
-              </div>
-            </div>
-          </header>
-
-          {/* PAGE CONTENT PANEL */}
-          <main className="flex-1 p-6 space-y-8 select-text">
-            {activeTab === 'mode1' && <Mode1 />}
-            {activeTab === 'mode2' && <Mode2 />}
-            {activeTab === 'mode3' && <Mode3 />}
-          </main>
-
-          {/* FOOTER CANVAS */}
-          <footer className="border-t border-slate-900 p-8 text-center text-xs text-slate-500 bg-slate-950 space-y-1 bg-gradient-to-t from-slate-900/20 to-transparent">
-            <div>
-              WatchWise 2.0 — Fairness-Aware Group Movie Recommender
-            </div>
-            <div className="text-[10px] text-zinc-600">
-              Deep Learning Course Project · Grounded in real MovieLens ratings · Diffusion-generated compromise candidates vs traditional nearest-neighbour retrieval
-            </div>
-          </footer>
-        </div>
-
-        {/* DETAILS FLOATING DRAWER */}
-        {showDocSidebar && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex justify-end transition-opacity" onClick={() => setShowDocSidebar(false)}>
-            <div 
-              className="w-full max-w-lg h-full bg-slate-900 border-l border-slate-800 p-6 shadow-2xl overflow-y-auto space-y-6"
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-                <div className="flex items-center gap-2">
-                  <Layers className="w-5 h-5 text-indigo-400" />
-                  <h3 className="text-base font-extrabold text-slate-100">WatchWise System Specs</h3>
-                </div>
-                <button 
-                  onClick={() => setShowDocSidebar(false)}
-                  className="p-1 px-2.5 bg-slate-800 hover:bg-slate-700 text-xs rounded-lg text-slate-300 transition-all"
-                >
-                  Close
-                </button>
-              </div>
-
-              <div className="space-y-5 text-xs text-slate-300 leading-relaxed">
-                <div className="space-y-1 bg-indigo-950/20 border border-indigo-500/10 p-4 rounded-xl">
-                  <div className="font-bold text-indigo-400 mb-1 flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-ping" />
-                    How to read the validation
+                    <span className={`font-mono text-[10px] font-extrabold ${isActive ? 'text-[#EA580C]' : 'text-[#909090]'}`}>
+                      {tab.short.toUpperCase()}
+                    </span>
                   </div>
-                  <p className="text-slate-400">
-                    To maintain absolute scientific honesty, 20% of every user's ratings are hidden as a <strong className="text-indigo-300">non-circular holdout</strong> BEFORE matrix factorization. When evaluations report NDCG@5 and Hit@5, they are calculated ONLY against these unseen real ratings — proving the system learns genuine personal taste rather than simple database memorization.
-                  </p>
-                </div>
+                </button>
+              )
+            })}
+          </nav>
+        </header>
 
-                <div className="space-y-4">
-                  <h4 className="font-bold text-slate-200 text-xs tracking-wider uppercase border-b border-slate-800 pb-1.5">Ablation Controls</h4>
-                  <p className="text-slate-400 text-[11px]">
-                    To prove that conditional diffusion candidate generation and RL slate selection work, the system compares 5 distinct paths under identical conditions:
-                  </p>
-                  <ul className="space-y-2 list-none text-[11px]">
-                    <li className="flex items-start gap-2 bg-slate-800/40 p-2 rounded-lg">
-                      <span className="text-red-400 font-bold font-mono">1. avg_baseline:</span>
-                      <span className="text-slate-400">Traditional nearest-neighbour candidate selection with standard averaging of user ratings. Highly biased towards popular titles, often stranding outlier tastes.</span>
-                    </li>
-                    <li className="flex items-start gap-2 bg-slate-800/40 p-2 rounded-lg">
-                      <span className="text-purple-400 font-bold font-mono">2. nn_greedy:</span>
-                      <span className="text-slate-400">Nearest-Neighbour candidate pools with greedy fairness-constrained optimization.</span>
-                    </li>
-                    <li className="flex items-start gap-2 bg-slate-800/40 p-2 rounded-lg">
-                      <span className="text-blue-400 font-bold font-mono">3. diffusion_greedy:</span>
-                      <span className="text-slate-400">Generates compromise candidate pools using conditional diffusion (DDPM) + greedy selections.</span>
-                    </li>
-                    <li className="flex items-start gap-2 bg-slate-800/40 p-2 rounded-lg">
-                      <span className="text-teal-400 font-bold font-mono">4. nn_rl:</span>
-                      <span className="text-slate-400">Standard Nearest-Neighbour pools reranked by the REINFORCE sequential policy network.</span>
-                    </li>
-                    <li className="flex items-start gap-2 bg-slate-800/40 p-2 rounded-lg">
-                      <span className="text-emerald-400 font-bold font-mono">5. diffusion_rl:</span>
-                      <span className="text-slate-400">The full WatchWise stack — conditional diffusion candidate pools selecting slates sequential on fairness REINFORCE policy.</span>
-                    </li>
-                  </ul>
-                </div>
+        <main className="flex-1 py-8">
+          {activeTab === 'mode1' && <Mode1 />}
+          {activeTab === 'mode2' && <Mode2 />}
+          {activeTab === 'mode3' && <Mode3 />}
+        </main>
 
-                <div className="space-y-2">
-                  <h4 className="font-bold text-slate-200 text-xs tracking-wider uppercase border-b border-slate-800 pb-1.5">Fairness Semantics</h4>
-                  <p className="text-slate-400 text-[11px]">
-                    How is group satisfaction measured? Rather than raw predicted ratings (which suffer from popularity skew), satisfaction defines each member's <strong className="text-indigo-300">percentile rank of the movie rating</strong> sorted within their own personal rating history profile. 
-                  </p>
-                  <p className="text-slate-400 text-[11px]">
-                    The reward function balances overall group pleasure (relevance) alongside minority-member safety:
-                    <br />
-                    <code className="block bg-slate-950 p-2 rounded border border-slate-800 mt-1 sm:text-center text-violet-300 font-mono text-[10px]">
-                      R = w1 * mean_sat + w2 * min_member_sat + w3 * diversity - w4 * disagreement
-                    </code>
-                  </p>
+        <footer className="border-t-2 border-[#1A1A1A] py-6 font-mono text-[10px] uppercase tracking-widest text-[#606060]">
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <span>WatchWise // Fairness-Aware Group Movie Recommender</span>
+            <span>MovieLens Ratings // Diffusion Candidates // Reinforce Slate Layer</span>
+          </div>
+        </footer>
+      </div>
+
+      {showDocSidebar && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-[#1A1A1A]/45" onClick={() => setShowDocSidebar(false)}>
+          <div
+            className="h-full w-full max-w-xl overflow-y-auto border-l-4 border-[#1A1A1A] bg-[#F7F6F0] p-6 text-[#1A1A1A]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-6 flex items-start justify-between gap-4 border-b-2 border-[#1A1A1A] pb-4">
+              <div>
+                <div className="flex items-center gap-2 swiss-section-title">
+                  <Layers className="h-4 w-4" />
+                  System Specs
                 </div>
+                <h3 className="mt-2 font-display text-2xl font-extrabold uppercase tracking-tighter">
+                  WatchWise Blueprint
+                </h3>
+              </div>
+              <button type="button" onClick={() => setShowDocSidebar(false)} className="swiss-button-secondary px-3">
+                <X className="h-4 w-4" />
+                Close
+              </button>
+            </div>
+
+            <div className="space-y-5 text-sm leading-relaxed text-[#505051]">
+              <div className="swiss-panel-strong p-4">
+                <div className="font-mono text-[10px] font-extrabold uppercase tracking-widest text-[#EA580C]">
+                  How to read validation
+                </div>
+                <p className="mt-2">
+                  Twenty percent of every user's ratings are hidden as a non-circular holdout before matrix factorization. NDCG@5 and Hit@5 are calculated only against these unseen real ratings.
+                </p>
+              </div>
+
+              <div className="swiss-panel p-4">
+                <h4 className="mb-3 border-b border-black/15 pb-2 font-display text-lg font-extrabold uppercase tracking-tight">
+                  Ablation Controls
+                </h4>
+                <div className="space-y-3 font-mono text-xs uppercase text-[#404040]">
+                  <p><strong className="text-[#EA580C]">1. avg_baseline:</strong> nearest-neighbour candidates with average user ratings.</p>
+                  <p><strong className="text-[#EA580C]">2. nn_greedy:</strong> nearest-neighbour pool with greedy fairness reranking.</p>
+                  <p><strong className="text-[#EA580C]">3. diffusion_greedy:</strong> generated candidates with greedy reranking.</p>
+                  <p><strong className="text-[#EA580C]">4. nn_rl:</strong> traditional pool with REINFORCE slate selection.</p>
+                  <p><strong className="text-[#EA580C]">5. diffusion_rl:</strong> WatchWise generated candidates with REINFORCE slate selection.</p>
+                  <p><strong className="text-[#EA580C]">6. hybrid_rl:</strong> nearest-neighbour and diffusion pools combined before REINFORCE slate selection.</p>
+                </div>
+              </div>
+
+              <div className="swiss-panel p-4">
+                <h4 className="mb-2 font-display text-lg font-extrabold uppercase tracking-tight">
+                  Core Claim
+                </h4>
+                <p>
+                  The app compares whether a conditional diffusion generator produces fairer group movie choices than nearest-neighbour retrieval when both are passed through the same evaluation logic.
+                </p>
               </div>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }

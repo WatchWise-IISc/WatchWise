@@ -1,65 +1,111 @@
 import React, { useState, useEffect } from 'react'
-import { fetchGroups, fetchMode1 } from '../api.js'
+import { fetchGroups, fetchMode1, fetchMode1Custom } from '../api.js'
+import CustomGroupBuilder, {
+  buildCustomMemberPayload,
+  createInitialCustomMembers,
+  customMembersReady,
+} from './CustomGroupBuilder.jsx'
 import GroupPanel from './GroupPanel.jsx'
 import SlateTable from './SlateTable.jsx'
 import MetricsChart from './MetricsChart.jsx'
-import { Sparkles, HelpCircle, ArrowRight, RefreshCw, Star, ShieldAlert, CheckCircle2, Terminal, Info, LayoutGrid, Award, ShieldCheck, TrendingUp, Compass, Cpu, Film } from 'lucide-react'
+import { Cpu, Film, RefreshCw, Star, Terminal } from 'lucide-react'
 
-function InsightCard({ baseline, watchwise, metrics }) {
+function asNumber(value, fallback = 0) {
+  const n = Number(value)
+  return Number.isFinite(n) ? n : fallback
+}
+
+function metric3(value) {
+  return asNumber(value).toFixed(3)
+}
+
+function pct(value, digits = 0) {
+  return `${(asNumber(value) * 100).toFixed(digits)}%`
+}
+
+function signedPoints(delta) {
+  const points = delta * 100
+  const rounded = Math.abs(points) < 10 ? points.toFixed(1) : points.toFixed(0)
+  return `${points >= 0 ? '+' : ''}${rounded} pts`
+}
+
+function relativeLift(from, to) {
+  const base = asNumber(from)
+  const next = asNumber(to)
+  const delta = next - base
+  if (Math.abs(delta) < 0.0005) return 'flat'
+  if (Math.abs(base) < 0.0005) return signedPoints(delta)
+  return `${delta >= 0 ? '+' : ''}${Math.round((delta / base) * 100)}%`
+}
+
+function InsightCard({ metrics, watchwiseMethod = 'diffusion_rl' }) {
   if (!metrics || metrics.length === 0) return null
   const base = metrics.find(m => m.method === 'avg_baseline')
-  const best = metrics.find(m => m.method === 'diffusion_rl')
+  const best = metrics.find(m => m.method === watchwiseMethod) ||
+    metrics.find(m => m.method === 'hybrid_rl') ||
+    metrics.find(m => m.method === 'diffusion_rl')
   if (!base || !best) return null
-  const lift = ((best.min_member_sat - base.min_member_sat) * 100).toFixed(0)
-  const gapReduction = base.fairness_gap > 0
-    ? ((1 - best.fairness_gap / base.fairness_gap) * 100).toFixed(0)
-    : '100'
+  const floorDelta = asNumber(best.min_member_sat) - asNumber(base.min_member_sat)
+  const ndcgDelta = asNumber(best.ndcg5) - asNumber(base.ndcg5)
+  const hitDelta = asNumber(best.hit5) - asNumber(base.hit5)
+  const worstNdcgDelta = asNumber(best.worst_ndcg5) - asNumber(base.worst_ndcg5)
+  const floorLift = floorDelta > 0.004
+  const floorPreserved = floorDelta >= -0.01
+  const headline = floorLift
+    ? 'WatchWise lifts the worst-off viewer'
+    : 'WatchWise improves held-out discovery'
+  const floorCopy = floorLift
+    ? `WatchWise raises the predicted worst-off floor from ${metric3(base.min_member_sat)} to ${metric3(best.min_member_sat)}.`
+    : floorPreserved
+      ? `The predicted floor is already saturated for this cohort: ${metric3(base.min_member_sat)} traditional vs ${metric3(best.min_member_sat)} WatchWise.`
+      : `WatchWise trades ${signedPoints(floorDelta)} of proxy floor for stronger held-out ranking.`
+  const validationCopy = ndcgDelta > 0 || hitDelta > 0 || worstNdcgDelta > 0
+    ? `The non-circular held-out split improves: baseline NDCG@5 ${metric3(base.ndcg5)} vs WatchWise ${metric3(best.ndcg5)}; baseline Hit@5 ${metric3(base.hit5)} vs WatchWise ${metric3(best.hit5)}.`
+    : `This cohort does not produce a held-out win; use the ablation table to inspect the trade-off directly.`
 
   return (
-    <div className="relative overflow-hidden bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent border border-emerald-500/20 rounded-2xl p-6 shadow-xl">
-      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-emerald-500/10 to-transparent pointer-events-none rounded-bl-full animate-pulse" />
-
-      <div className="flex items-center gap-2 mb-5">
-        <Sparkles className="w-5 h-5 text-emerald-400 animate-pulse" />
-        <h3 className="text-sm font-bold text-emerald-300 uppercase tracking-widest">Empirical Outcome Summary</h3>
+    <div className="swiss-panel-strong p-5">
+      <div className="mb-5 grid gap-4 border-b border-dashed border-black/20 pb-4 md:grid-cols-[1fr_auto] md:items-end">
+        <div>
+          <span className="swiss-section-title">Empirical Outcome Summary</span>
+          <h3 className="mt-1 font-display text-2xl font-extrabold uppercase tracking-tighter text-[#1A1A1A]">
+            {headline}
+          </h3>
+        </div>
+        <span className="swiss-tag swiss-tag-accent">{best.method}</span>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        <div className="bg-slate-900/80 border border-emerald-500/10 rounded-xl p-5 hover:border-emerald-500/20 transition-all text-center">
-          <div className="text-3xl font-black text-emerald-400">+{lift}%</div>
-          <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1.5">Worst-Off member Lift</div>
-          <div className="text-[11px] text-slate-500 mt-1">Direct increase in individual satisfaction</div>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="border border-black/15 bg-white p-4">
+          <div className="font-display text-4xl font-extrabold tracking-tighter text-[#EA580C]">{relativeLift(base.ndcg5, best.ndcg5)}</div>
+          <div className="mt-2 font-mono text-[10px] font-bold uppercase tracking-widest text-[#505051]">Held-out NDCG lift</div>
+          <p className="mt-2 text-xs leading-relaxed text-[#606060]">Ranking gain on hidden true ratings.</p>
         </div>
-        <div className="bg-slate-900/80 border border-emerald-500/10 rounded-xl p-5 hover:border-emerald-500/20 transition-all text-center">
-          <div className="text-3xl font-black text-emerald-400">{gapReduction}%</div>
-          <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1.5">Equality Gap Reduced</div>
-          <div className="text-[11px] text-slate-500 mt-1">Closes disparity across co-viewers</div>
+        <div className="border border-black/15 bg-white p-4">
+          <div className="font-display text-4xl font-extrabold tracking-tighter text-[#EA580C]">{relativeLift(base.hit5, best.hit5)}</div>
+          <div className="mt-2 font-mono text-[10px] font-bold uppercase tracking-widest text-[#505051]">Held-out Hit@5 lift</div>
+          <p className="mt-2 text-xs leading-relaxed text-[#606060]">More hidden true favorites appear in the final slate.</p>
         </div>
-        <div className="bg-slate-900/80 border border-indigo-500/10 rounded-xl p-5 hover:border-indigo-500/20 transition-all text-center">
-          <div className="text-3xl font-black text-indigo-400">{best.hit5}</div>
-          <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1.5">Hit@5 (Held-Out Split)</div>
-          <div className="text-[11px] text-slate-500 mt-1">Accuracy on hidden true ratings</div>
+        <div className="border border-black/15 bg-white p-4">
+          <div className="font-display text-4xl font-extrabold tracking-tighter text-[#1A1A1A]">{pct(best.min_member_sat, 1)}</div>
+          <div className="mt-2 font-mono text-[10px] font-bold uppercase tracking-widest text-[#505051]">Worst-off proxy floor</div>
+          <p className="mt-2 text-xs leading-relaxed text-[#606060]">Predicted taste-fit retained across members.</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 text-xs">
-        <div className="p-4 bg-slate-950/70 border border-white/5 rounded-xl hover:border-white/10 transition-all space-y-1.5">
-          <div className="flex items-center gap-1.5 text-emerald-400 font-bold">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-            <span>Co-viewer Veto Eliminated</span>
+      <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="border-l-4 border-[#EA580C] bg-white p-4">
+          <div className="font-mono text-[10px] font-extrabold uppercase tracking-widest text-[#EA580C]">
+            {floorLift ? 'Co-viewer veto eliminated' : 'Proxy floor interpreted correctly'}
           </div>
-          <p className="text-slate-400 leading-relaxed">
-            The traditional average gave some people high pleasure, but left at least one user with almost zero movies they liked (satisfaction: <strong className="text-rose-400 font-semibold font-mono">{base.min_member_sat}</strong>). Under WatchWise, every single person gets a highly compatible match (satisfaction: <strong className="text-emerald-400 font-semibold font-mono">{best.min_member_sat}</strong>). Nobody disengages or vetoes.
+          <p className="mt-2 text-xs leading-relaxed text-[#505051]">
+            {floorCopy}
           </p>
         </div>
-
-        <div className="p-4 bg-slate-950/70 border border-white/5 rounded-xl hover:border-white/10 transition-all space-y-1.5">
-          <div className="flex items-center gap-1.5 text-indigo-400 font-bold">
-            <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
-            <span>Guaranteed Fairness Gains</span>
-          </div>
-          <p className="text-slate-400 leading-relaxed">
-            While standard apps assume a homogeneous list keeps the peace, true groups represent conflicting personal tastes. Reducing the fairness margin by <strong className="text-indigo-300 font-semibold font-mono">{gapReduction}%</strong> proves that we can respect unique desires without ruining general enjoyment.
+        <div className="border-l-4 border-[#1A1A1A] bg-white p-4">
+          <div className="font-mono text-[10px] font-extrabold uppercase tracking-widest text-[#1A1A1A]">Ground-truth validation</div>
+          <p className="mt-2 text-xs leading-relaxed text-[#505051]">
+            {validationCopy}
           </p>
         </div>
       </div>
@@ -67,348 +113,471 @@ function InsightCard({ baseline, watchwise, metrics }) {
   )
 }
 
+function CustomColdStartSummary({ result }) {
+  const base = result.metrics?.find((m) => m.method === 'avg_baseline')
+  const watchwise = result.metrics?.find((m) => m.method === result.watchwise_method)
+  if (!base || !watchwise) return null
+
+  return (
+    <div className="swiss-panel-strong border-t-[#EA580C] p-5">
+      <div className="mb-5 flex flex-col gap-3 border-b border-dashed border-black/20 pb-4 md:flex-row md:items-end md:justify-between">
+        <div>
+          <span className="swiss-section-title">Custom Group Result</span>
+          <h3 className="mt-1 font-display text-2xl font-extrabold uppercase tracking-tighter">
+            Cold-start proxy slate generated
+          </h3>
+        </div>
+        <span className="swiss-tag swiss-tag-accent">{result.watchwise_method_label || result.watchwise_method}</span>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="border border-black/15 bg-white p-4">
+          <div className="font-display text-3xl font-extrabold tracking-tighter text-[#EA580C]">{watchwise.min_member_sat}</div>
+          <div className="mt-2 font-mono text-[10px] font-bold uppercase tracking-widest text-[#505051]">Profile-grounded floor</div>
+        </div>
+        <div className="border border-black/15 bg-white p-4">
+          <div className="font-display text-3xl font-extrabold tracking-tighter">{watchwise.profile_match}</div>
+          <div className="mt-2 font-mono text-[10px] font-bold uppercase tracking-widest text-[#505051]">Favorite profile match</div>
+        </div>
+        <div className="border border-black/15 bg-white p-4">
+          <div className="font-display text-3xl font-extrabold tracking-tighter">{watchwise.diversity}</div>
+          <div className="mt-2 font-mono text-[10px] font-bold uppercase tracking-widest text-[#505051]">Slate diversity</div>
+        </div>
+      </div>
+
+      <div className="mt-5 border-l-4 border-[#1A1A1A] bg-white p-4 text-xs leading-relaxed text-[#505051]">
+        {result.metric_note || 'Custom groups use explicit profile fit because no historical holdout exists yet.'}
+      </div>
+    </div>
+  )
+}
+
 export default function Mode1() {
   const [kind, setKind] = useState('divergent')
+  const [groupSource, setGroupSource] = useState('preset')
   const [groups, setGroups] = useState([])
   const [selectedGid, setSelectedGid] = useState(null)
+  const [customMembers, setCustomMembers] = useState(createInitialCustomMembers)
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
   const [showDeepDive, setShowDeepDive] = useState(false)
 
   useEffect(() => {
-    fetchGroups(kind).then((data) => {
+    fetchGroups(kind, 'mode1').then((data) => {
       setGroups(data.groups)
       if (data.groups.length > 0) setSelectedGid(data.groups[0].gid)
     })
   }, [kind])
 
   const handleRecommend = async () => {
-    if (!selectedGid) return
+    const isCustom = groupSource === 'custom'
+    if (isCustom && !customMembersReady(customMembers)) return
+    if (!isCustom && !selectedGid) return
     setLoading(true)
     setResult(null)
     try {
-      const data = await fetchMode1(selectedGid)
+      const data = isCustom
+        ? await fetchMode1Custom(buildCustomMemberPayload(customMembers))
+        : await fetchMode1(selectedGid)
       setResult(data)
     } finally {
       setLoading(false)
     }
   }
 
+  const canRun = groupSource === 'custom'
+    ? customMembersReady(customMembers)
+    : Boolean(selectedGid)
+
   return (
-    <div className="space-y-8">
-      {/* Visual Scientific Infographic cards instead of wall of text */}
-      <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-        <div className="lg:col-span-7 bg-slate-900/20 border border-white/5 rounded-2xl p-6 flex flex-col justify-between space-y-4">
-          <div>
-            <span className="text-[10px] font-bold text-violet-400 uppercase tracking-wider block mb-1.5">PROJECT OBJECTIVE</span>
-            <h2 className="text-xl font-extrabold text-white tracking-tight">The Democratic Movie Night Paradox</h2>
-            <p className="text-xs text-slate-400 mt-2 leading-relaxed">
-              When 5 people pick a film, traditional streaming platforms average everyone's rating vectors to yield a compromise. If 3 members love blockbusters and 2 love indie arthouse, the top 5 spots will consist entirely of dramas/comedies which Mom and Dad enjoy — but the teenager is left totally bored.
+    <div className="space-y-8 text-[#1A1A1A]">
+      <section className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        <div className="swiss-panel-strong p-6 lg:col-span-7">
+          <span className="swiss-section-title">Mode 1 · Project Objective</span>
+          <h2 className="mt-2 font-display text-3xl font-extrabold uppercase tracking-tighter text-[#1A1A1A]">
+            The democratic movie night paradox
+          </h2>
+          <div className="mt-4 space-y-3 text-sm leading-relaxed text-[#505051]">
+            <p>
+              When five people pick a film, traditional platforms often average rating vectors and retrieve the highest central compromise.
             </p>
-            <p className="text-xs text-slate-400 mt-2 leading-relaxed">
-              WatchWise asks a critical machine learning question: <strong className="text-violet-400">Can we build 5-movie slates where everyone gets at least one highly personalized pick?</strong> By elevating the <em>minimum</em> satisfaction instead of the average, we bring veto safety to co-viewing.
+            <p>
+              WatchWise asks whether a slate can protect the least-satisfied member by elevating minimum satisfaction instead of only maximizing the average.
             </p>
           </div>
-
-          <div className="flex items-center gap-1.5 bg-violet-905 bg-violet-950/20 border border-violet-500/15 p-3 rounded-xl text-[11px] text-violet-300">
-            <Info className="w-4 h-4 shrink-0" />
-            <span>Main Scientific Metric: <strong>min-member satisfaction</strong> — maximizing fairness constraints.</span>
+          <div className="mt-6 border-l-4 border-[#EA580C] bg-white p-3 font-mono text-[11px] font-bold uppercase tracking-wide text-[#404040]">
+            Main scientific metric: min-member satisfaction.
+          </div>
+          <div className="mt-6 border-t border-black/10 pt-5">
+            <div className="swiss-section-title mb-3">Technical Approach</div>
+            <dl className="space-y-3 text-sm leading-relaxed text-[#505051]">
+              {[
+                {
+                  k: 'Training',
+                  v: (
+                    <>
+                      We learn <strong className="font-semibold text-[#1A1A1A]">128-dimensional matrix-factorization</strong> embeddings for every user and movie on <strong className="font-semibold text-[#1A1A1A]">MovieLens-25M</strong>, hiding <strong className="font-semibold text-[#1A1A1A]">20%</strong> of each member&apos;s ratings before training so they stay unseen during evaluation.
+                    </>
+                  ),
+                },
+                {
+                  k: 'Generation',
+                  v: (
+                    <>
+                      A group-conditioned <strong className="font-semibold text-[#1A1A1A]">diffusion model (DDPM, 500 noise steps, 120 epochs)</strong> synthesizes compromise candidates that sit between members&apos; tastes, sampled with <strong className="font-semibold text-[#1A1A1A]">100-step DDIM</strong> at inference — benchmarked head-to-head against classical <strong className="font-semibold text-[#1A1A1A]">nearest-neighbour retrieval</strong>.
+                    </>
+                  ),
+                },
+                {
+                  k: 'Reranking',
+                  v: (
+                    <>
+                      An identical fairness-aware reranker — a greedy <strong className="font-semibold text-[#1A1A1A]">max-min bandit</strong> versus a <strong className="font-semibold text-[#1A1A1A]">REINFORCE</strong> slate policy trained over <strong className="font-semibold text-[#1A1A1A]">20K episodes</strong> — orders a 120-candidate pool to maximize <strong className="font-semibold text-[#1A1A1A]">reward = w₁·avg + w₂·min-member + diversity</strong>.
+                    </>
+                  ),
+                },
+                {
+                  k: 'Inference',
+                  v: (
+                    <>
+                      Five method stacks (baseline, plus NN and diffusion each with greedy and RL reranking) are scored on identical pools and graded by held-out <strong className="font-semibold text-[#1A1A1A]">NDCG@5 / Hit@5</strong>; the headline fairness signal is <strong className="font-semibold text-[#1A1A1A]">min-member (worst-off) satisfaction</strong>.
+                    </>
+                  ),
+                },
+              ].map(({ k, v }) => (
+                <div key={k} className="sm:grid sm:grid-cols-[120px_1fr] sm:gap-4">
+                  <dt className="mb-1 font-mono text-[10px] font-extrabold uppercase tracking-widest text-[#EA580C] sm:mb-0 sm:pt-0.5">
+                    {k}
+                  </dt>
+                  <dd>{v}</dd>
+                </div>
+              ))}
+            </dl>
           </div>
         </div>
 
-        <div className="lg:col-span-5 bg-gradient-to-tr from-slate-900/60 to-slate-900/20 border border-white/5 rounded-2xl p-6 flex flex-col justify-between">
-          <div className="space-y-2">
-            <span className="text-[10px] font-bold text-violet-400 uppercase tracking-wider block">TECHNICAL CONTRAST</span>
-            <h3 className="text-sm font-extrabold text-slate-100 uppercase tracking-wide">Methodology Architecture</h3>
-          </div>
-
-          <div className="space-y-3 my-4">
-            <div className="flex items-center gap-2.5 p-2 bg-rose-500/5 hover:bg-rose-500/10 rounded-xl border border-rose-500/10 transition-colors">
-              <span className="text-xs font-mono font-bold text-rose-400 bg-rose-500/10 p-1 rounded">TRADITIONAL</span>
-              <div className="text-[11px] text-slate-400 font-medium">Nearest-neighbour retrieval optimized for average group vector.</div>
+        <div className="swiss-panel flex flex-col p-6 lg:col-span-5">
+          <span className="swiss-section-title">Technical Contrast</span>
+          <h3 className="mt-2 font-display text-xl font-extrabold uppercase tracking-tight">
+            Methodology architecture
+          </h3>
+          <div className="mt-5 grid flex-1 gap-3">
+            <div className="border border-black/15 bg-white p-4">
+              <span className="swiss-tag">Traditional</span>
+              <p className="mt-2 text-[13px] leading-relaxed text-[#505051]">
+                The average-vector baseline searches for movies closest to the group centroid. In a five-person group with four action fans and one quiet-drama fan, it would likely predict <strong className="font-semibold text-[#1A1A1A]">The Avengers</strong> or <strong className="font-semibold text-[#1A1A1A]">Mad Max: Fury Road</strong> as the safest shared choice.
+              </p>
+              <div className="mt-2.5 border-t border-black/10 pt-2">
+                <span className="font-mono text-[9px] font-extrabold uppercase tracking-widest text-[#909090]">Where it fails</span>
+                <p className="mt-1 text-xs leading-relaxed text-[#606060]">
+                  Those titles can score a strong average because the majority pulls the centroid toward spectacle, but the drama fan&apos;s predicted satisfaction may sit near 2/5. The slate looks democratic numerically while repeatedly sacrificing the same minority taste.
+                </p>
+              </div>
             </div>
-            <div className="flex items-center gap-2.5 p-2 bg-emerald-500/5 hover:bg-emerald-500/10 rounded-xl border border-emerald-500/10 transition-colors">
-              <span className="text-xs font-mono font-bold text-emerald-400 bg-emerald-500/10 p-1 rounded">WATCHWISE</span>
-              <div className="text-[11px] text-slate-300 font-medium">Generates candidates via conditional diffusion, ranked sequentially via REINFORCE policy.</div>
+            <div className="border border-[#EA580C]/35 bg-white p-4">
+              <span className="swiss-tag swiss-tag-accent">WatchWise</span>
+              <p className="mt-2 text-[13px] leading-relaxed text-[#505051]">
+                WatchWise samples compromise candidates with diffusion, mixes them with NN retrieval, then ranks by average fit plus the worst-off member floor. The same group can surface <strong className="font-semibold text-[#1A1A1A]">Arrival</strong>, <strong className="font-semibold text-[#1A1A1A]">The Prestige</strong>, or <strong className="font-semibold text-[#1A1A1A]">Knives Out</strong> style picks.
+              </p>
+              <div className="mt-2.5 border-t border-[#EA580C]/20 pt-2">
+                <span className="font-mono text-[9px] font-extrabold uppercase tracking-widest text-[#B84309]">Where it wins</span>
+                <p className="mt-1 text-xs leading-relaxed text-[#606060]">
+                  These films still satisfy the action-leaning majority through tension and scale, but give the drama-oriented member a much higher personal rank. The reranker prefers the slate whose weakest predicted viewer is closer to 3.5/5 instead of chasing only the loudest average.
+                </p>
+              </div>
             </div>
           </div>
-
-          <p className="text-[10px] text-slate-500 italic">
-            Models trained on complete MovieLens logs. Outputs validated against non-circular user ratings.
+          <p className="mt-5 border-t border-dashed border-black/20 pt-3 font-mono text-[10px] uppercase tracking-wide text-[#707070]">
+            Measured against non-circular held-out user ratings.
           </p>
         </div>
       </section>
 
-      {/* TECHNICAL COLLAPSIBLE AS HIGH-TECH COMPONENT */}
-      <div className="border border-white/5 bg-slate-900/20 rounded-2xl overflow-hidden">
+      <div className="swiss-panel overflow-hidden">
         <button
+          type="button"
           onClick={() => setShowDeepDive(!showDeepDive)}
-          className="w-full flex items-center justify-between p-5 text-left text-xs font-bold text-slate-300 hover:text-white hover:bg-slate-900/30 transition-all select-none"
+          className="flex w-full items-center justify-between gap-4 border-b border-black/15 bg-[#FAF9F6] p-5 text-left transition-colors hover:bg-white"
         >
-          <div className="flex items-center gap-2">
-            <Cpu className="w-4 h-4 text-violet-400" />
-            <span>TECHNICAL SPECIFICATIONS & NEURAL STACK</span>
+          <div className="flex items-center gap-2 font-mono text-xs font-extrabold uppercase tracking-widest text-[#1A1A1A]">
+            <Cpu className="h-4 w-4 text-[#EA580C]" />
+            Technical specifications and neural stack
           </div>
-          <span className="text-[10px] font-bold text-violet-400 bg-violet-500/10 px-2.5 py-0.5 rounded border border-violet-500/20">
-            {showDeepDive ? 'HIDE SCHEMA' : 'EXPAND STUDY ARCHITECTURE'}
-          </span>
+          <span className="swiss-tag swiss-tag-accent">{showDeepDive ? 'Hide schema' : 'Expand architecture'}</span>
         </button>
 
         {showDeepDive && (
-          <div className="p-6 border-t border-white/[0.04] bg-slate-950/60 text-xs text-slate-400 space-y-4 leading-relaxed border-dashed text-justify">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="p-4 bg-slate-900/40 border border-white/5 rounded-xl space-y-2">
-                <div className="font-bold text-slate-200 uppercase tracking-widest text-[10px] text-violet-400 pb-1 border-b border-white/[0.04]">1. Matrix Factorization</div>
-                <p className="text-[11px]">User & item ratings are mapped to dense 64-dim latents. An embedding dot product forecasts ratings. Trained on real MovieLens splits. 20% holdout split prevents target leakage.</p>
+          <div className="grid grid-cols-1 gap-4 p-5 text-xs leading-relaxed text-[#505051] md:grid-cols-2 xl:grid-cols-4">
+            {[
+              ['1. Matrix Factorization', 'User and item ratings are mapped to dense 64-dimensional latents. A 20% holdout split prevents target leakage.'],
+              ['2. Conditional Diffusion', 'DDPM denoises latents from Gaussian noise conditioned on the mean group vector.'],
+              ['3. Fairness Reward', 'Satisfaction balances mean relevance, minimum member protection, and diversity.'],
+              ['4. REINFORCE Slate Layer', 'A sequential policy emits five recommendations from candidate pools using fairness state scalars.'],
+            ].map(([title, copy]) => (
+              <div key={title} className="border border-black/15 bg-white p-4">
+                <div className="border-b border-black/15 pb-2 font-mono text-[10px] font-extrabold uppercase tracking-widest text-[#EA580C]">{title}</div>
+                <p className="mt-3">{copy}</p>
               </div>
-              <div className="p-4 bg-slate-900/40 border border-white/5 rounded-xl space-y-2">
-                <div className="font-bold text-slate-200 uppercase tracking-widest text-[10px] text-cyan-400 pb-1 border-b border-white/[0.04]">2. Conditional Diffusion</div>
-                <p className="text-[11px]">Our DDPM denoises latents from Gaussian noise conditioned on mean group vector. Synthesizes 100 movie compromise vectors. Evaluated using 50 DDIM steps with guidance scale=1.5.</p>
-              </div>
-              <div className="p-4 bg-slate-900/40 border border-white/5 rounded-xl space-y-2">
-                <div className="font-bold text-slate-200 uppercase tracking-widest text-[10px] text-amber-400 pb-1 border-b border-white/[0.04]">3. Fairness Reward</div>
-                <p className="text-[11px]">Satisfaction represents relative percentile rank. Mathematically balances interest relevance vs individual safety margins: <strong>R = w1*mean + w2*min_member + diversity</strong>.</p>
-              </div>
-              <div className="p-4 bg-slate-900/40 border border-white/5 rounded-xl space-y-2">
-                <div className="font-bold text-slate-200 uppercase tracking-widest text-[10px] text-emerald-400 pb-1 border-b border-white/[0.04]">4. REINFORCE Slate Layer</div>
-                <p className="text-[11px]">Inputs are 8 group-relative fairness state scalars. Reranks and emits 5 final recommendations step-by-step from candidate pools, optimized to save the outlier member.</p>
-              </div>
-            </div>
-            <div className="p-3 bg-violet-950/10 border border-violet-500/15 rounded-lg text-slate-400 leading-normal text-[11px] text-left">
-              <strong>Non-Circular Integrity Split:</strong> Because we carve out evaluation user logs <em>prior</em> to MF latent calculations, recommendations are verified using items the models have never processed. Hit@5 statistics reflect real generalization performance.
-            </div>
+            ))}
           </div>
         )}
       </div>
 
-      {/* CORE CONTROL CONSOLE CARD */}
-      <section className="bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-2xl p-6 shadow-xl relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-24 h-24 bg-gradient-to-br from-indigo-500/5 to-transparent pointer-events-none rounded-br-full" />
-
-        <div className="mb-4">
-          <h3 className="text-base font-extrabold text-white flex items-center gap-2">
-            <Terminal className="text-indigo-400 w-4.5 h-4.5" />
-            <span>Interactive Experiment Control Center</span>
+      <section className="swiss-panel-strong p-6">
+        <div className="mb-5">
+          <h3 className="flex items-center gap-2 font-display text-2xl font-extrabold uppercase tracking-tighter">
+            <Terminal className="h-5 w-5 text-[#EA580C]" />
+            Interactive experiment control
           </h3>
-          <p className="text-xs text-slate-400 mt-1 font-medium">
-            Configure cohort properties and trigger recommendation pipelines to benchmark traditional retrievals against WatchWise.
+          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-[#505051]">
+            Configure cohort properties and trigger the recommendation pipeline to benchmark traditional retrieval against WatchWise.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-          <div className="md:col-span-4 space-y-1.5">
-            <label className="block text-[11px] font-bold tracking-wider text-slate-400 uppercase">1. Group Difficulty Profile</label>
-            <select
-              value={kind}
-              onChange={(e) => setKind(e.target.value)}
-              className="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-3 text-xs text-slate-100 focus:outline-none focus:border-violet-500 transition-colors select-none"
-            >
-              <option value="divergent font">Divergent (Hardest - Conflicting tastes)</option>
-              <option value="similar font">Similar (Easiest - Group already agrees)</option>
-              <option value="random">Random (Medium - Mixed catalog tastes)</option>
-            </select>
-          </div>
-
-          <div className="md:col-span-4 space-y-1.5">
-            <label className="block text-[11px] font-bold tracking-wider text-slate-400 uppercase">2. Select Synthesized Cohort</label>
-            <select
-              value={selectedGid || ''}
-              onChange={(e) => setSelectedGid(Number(e.target.value))}
-              className="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-3 text-xs text-slate-100 focus:outline-none focus:border-violet-500 transition-colors font-mono"
-            >
-              {groups.map((g) => (
-                <option key={g.gid} value={g.gid}>{g.label}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="md:col-span-4">
+        <div className="mb-5 inline-flex border border-black/20 bg-white p-1">
+          {[
+            ['preset', 'Preset groups'],
+            ['custom', 'Custom group'],
+          ].map(([value, label]) => (
             <button
+              key={value}
+              type="button"
+              onClick={() => {
+                setGroupSource(value)
+                setResult(null)
+              }}
+              className={`px-3 py-2 font-mono text-[10px] font-extrabold uppercase tracking-widest transition-colors ${
+                groupSource === value
+                  ? 'bg-[#1A1A1A] text-white'
+                  : 'text-[#505051] hover:bg-[#F7F6F0] hover:text-[#1A1A1A]'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {groupSource === 'preset' ? (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-12 md:items-end">
+            <div className="space-y-2 md:col-span-7">
+              <label className="swiss-label">1. Select synthesized cohort</label>
+              <select
+                value={selectedGid || ''}
+                onChange={(e) => setSelectedGid(Number(e.target.value))}
+                className="swiss-select"
+              >
+                {groups.map((g) => (
+                  <option key={g.gid} value={g.gid}>{g.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="md:col-span-5">
+              <button
+                type="button"
+                onClick={handleRecommend}
+                disabled={loading || !canRun}
+                className="swiss-button w-full py-3.5"
+              >
+                {loading ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    <span>Recommending…</span>
+                  </>
+                ) : (
+                  <>
+                    <Star className="h-4 w-4" />
+                    <span>Recommend Movies</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-5">
+            <CustomGroupBuilder
+              members={customMembers}
+              onMembersChange={(next) => {
+                setCustomMembers(next)
+                setResult(null)
+              }}
+            />
+
+            <button
+              type="button"
               onClick={handleRecommend}
-              disabled={loading}
-              className="w-full relative flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-violet-600 to-indigo-500 text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:from-violet-500 hover:to-indigo-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-lg shadow-indigo-500/10"
+              disabled={loading || !canRun}
+              className="swiss-button w-full py-4"
             >
               {loading ? (
                 <>
-                  <RefreshCw className="animate-spin w-4 h-4 text-white" />
-                  <span>Computing Models...</span>
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  <span>Recommending…</span>
                 </>
               ) : (
                 <>
-                  <Star className="w-4 h-4 fill-white/10" />
-                  <span>Compute & Compare Methods</span>
+                  <Star className="h-4 w-4" />
+                  <span>Recommend Movies</span>
                 </>
               )}
             </button>
           </div>
-        </div>
+        )}
       </section>
 
-      {/* RESULT VISUAL CANVAS */}
       {result && (
         <div className="space-y-8">
-          {/* Active Cohort Panel Details */}
           <GroupPanel group={result.group} />
 
-          {/* Premium Outcome Statistic Tile */}
-          <InsightCard
-            baseline={result.baseline_slate}
-            watchwise={result.watchwise_slate}
-            metrics={result.metrics}
-          />
+          {result.custom ? (
+            <CustomColdStartSummary result={result} />
+          ) : (
+            <InsightCard
+              metrics={result.metrics}
+              watchwiseMethod={result.watchwise_method}
+            />
+          )}
 
-          {/* SIDE-BY-SIDE RECOMMENDATIONS */}
-          <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
-            <div className="bg-slate-900/30 border border-rose-500/15 rounded-2xl p-5 shadow-lg relative overflow-hidden flex flex-col justify-between">
-              <div className="flex flex-col">
-                <div className="lg:min-h-[110px] flex flex-col justify-start mb-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] font-bold text-rose-400 uppercase tracking-widest font-mono">Control Baseline</span>
-                    <div className="w-2.5 h-2.5 bg-rose-500 rounded-full" />
-                  </div>
-                  <h3 className="text-sm font-black text-white uppercase tracking-wider mb-2">
-                    Traditional Average Recommender
+          <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <div className="swiss-panel-strong flex flex-col justify-between p-5">
+              <div>
+                <div className="mb-4 border-b border-dashed border-black/20 pb-4">
+                  <span className="swiss-section-title">Control Baseline</span>
+                  <h3 className="mt-1 font-display text-xl font-extrabold uppercase tracking-tight">
+                    Traditional average recommender
                   </h3>
-                  <p className="text-[11px] text-slate-400 leading-relaxed">
-                    Predicted scores are calculated across all members, averaged, and the top-5 candidates are retrieved. Notice how minority members are typically starved out.
+                  <p className="mt-2 text-xs leading-relaxed text-[#505051]">
+                    Predicted scores are averaged across all members and the top five candidates are retrieved.
                   </p>
                 </div>
-                <SlateTable slate={result.baseline_slate} pickLabel="Traditional's pick for the group" />
+                <SlateTable slate={result.baseline_slate} pickLabel="Traditional pick for the group" />
               </div>
-              <p className="text-[10px] text-slate-500 italic mt-6 pt-3 border-t border-white/[0.03] font-mono">
-                Verify the "Caters To" list — if some member labels are missing, they got zero customized picks.
+              <p className="mt-4 border-t border-black/15 pt-3 font-mono text-[10px] uppercase tracking-wide text-[#707070]">
+                Missing member labels reveal users receiving no customized picks.
               </p>
             </div>
 
-            <div className="bg-slate-900/30 border border-emerald-500/15 rounded-2xl p-5 shadow-lg relative overflow-hidden flex flex-col justify-between">
-              <div className="flex flex-col">
-                <div className="lg:min-h-[110px] flex flex-col justify-start mb-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest font-mono">Tested Architecture</span>
-                    <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-ping" />
-                  </div>
-                  <h3 className="text-sm font-black text-white uppercase tracking-wider mb-2">
-                    WatchWise Collective (Diff + RL)
+            <div className="swiss-panel-strong flex flex-col justify-between border-t-[#EA580C] p-5">
+              <div>
+                <div className="mb-4 border-b border-dashed border-black/20 pb-4">
+                  <span className="swiss-section-title">Tested Architecture</span>
+                  <h3 className="mt-1 font-display text-xl font-extrabold uppercase tracking-tight">
+                    WatchWise collective
                   </h3>
-                  <p className="text-[11px] text-slate-300 leading-relaxed font-sans">
-                    100 compromise candidates generated through conditional diffusion, sequentialized and picked by REINFORCE to maximize local min-satisfaction.
+                  <p className="mt-2 text-xs leading-relaxed text-[#505051]">
+                    {result.custom
+                      ? 'Hybrid candidates are profile-gated against selected genres and favorite films before the final slate is shown.'
+                      : 'The best measured diffusion or hybrid WatchWise stack is shown against the traditional average baseline.'}
                   </p>
                 </div>
                 <SlateTable
                   slate={result.watchwise_slate}
-                  pickLabel="WatchWise's pick for the group"
+                  pickLabel="WatchWise pick for the group"
                   pickSummary="collective"
                 />
               </div>
-              <p className="text-[10px] text-slate-400 font-medium text-emerald-400/80 mt-6 pt-3 border-t border-white/[0.03] font-mono">
-                Satisfies everyone — even outlier members get a customized, highly appropriate Match in their genre range.
+              <p className="mt-4 border-t border-black/15 pt-3 font-mono text-[10px] uppercase tracking-wide text-[#EA580C]">
+                Designed to satisfy outlier members without discarding group relevance.
               </p>
             </div>
           </section>
 
-          {/* SUMMARY MATRIX ABLATION */}
-          <div className="bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-2xl p-6 shadow-xl relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-indigo-500/5 to-transparent pointer-events-none rounded-bl-full" />
+          {!result.custom && (
+            <>
+              <div className="swiss-panel-strong p-6">
+                <div className="mb-5">
+                  <span className="swiss-section-title">Complete compressed study</span>
+                  <h3 className="mt-1 font-display text-xl font-extrabold uppercase tracking-tight">
+                    Ablation studies - five-method metrics comparison
+                  </h3>
+                  <p className="mt-2 text-sm leading-relaxed text-[#505051]">
+                    Retrieval versus diffusion and greedy reranking versus REINFORCE policy are evaluated under identical conditions.
+                  </p>
+                </div>
 
-            <div className="mb-4">
-              <span className="text-[10px] font-bold text-violet-400 uppercase tracking-wider block">COMPLETE COMPRESSED STUDY</span>
-              <h3 className="text-sm font-extrabold text-white tracking-wide">
-                Ablation Studies — Complete 5-Method Metrics Comparison
-              </h3>
-              <p className="text-xs text-slate-400 mt-1">
-                We hold variables tightly: [Retrieval vs Diffusion] &times; [Greedy vs REINFORCE RL policy]. Note how each module lifts the fairness outcome.
-              </p>
-            </div>
-
-            <div className="overflow-x-auto border border-white/5 rounded-xl bg-slate-950/40">
-              <table className="w-full text-xs text-left font-sans">
-                <thead>
-                  <tr className="border-b border-white/[0.06] bg-slate-900/60 pb-1 text-slate-300">
-                    <th className="py-3.5 px-4 font-bold tracking-wider">Pipeline Model Configuration</th>
-                    <th className="py-3.5 px-3 font-bold text-right">Mean Relevance (Fit)</th>
-                    <th className="py-3.5 px-3 font-bold text-emerald-400 text-right">Min-Member Sat (Fairness)</th>
-                    <th className="py-3.5 px-3 font-bold text-right">Fairness Gap (Spread)</th>
-                    <th className="py-3.5 px-3 font-bold text-indigo-300 text-right">Held-Out NDCG@5</th>
-                    <th className="py-3.5 px-3 font-bold text-indigo-300 text-right">Held-Out Hit@5</th>
-                    <th className="py-3.5 px-3 font-bold text-right">Genre Diversity</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/[0.03] font-sans">
-                  {result.metrics.map((m) => {
-                    const isWatchWise = m.method === 'diffusion_rl'
-                    const isBaseline = m.method === 'avg_baseline'
-
-                    return (
-                      <tr key={m.method} className={`hover:bg-slate-900/20 transition-colors ${
-                        isWatchWise ? 'bg-emerald-500/5 font-semibold text-emerald-300 border-y border-emerald-500/10' :
-                        isBaseline ? 'bg-rose-500/5 text-rose-300' : 'text-slate-300'
-                      }`}>
-                        <td className="py-3 px-4">
-                          <div className="text-xs font-bold">{m.label}</div>
-                          {isBaseline && <div className="text-[9px] text-rose-500 font-extrabold uppercase mt-0.5 tracking-wider">Traditional Status-Quo</div>}
-                          {isWatchWise && <div className="text-[9px] text-emerald-400 font-extrabold uppercase mt-0.5 tracking-wider flex items-center gap-1">
-                            <Star className="w-2.5 h-2.5 fill-emerald-400" /> WatchWise Optimal Stack
-                          </div>}
-                        </td>
-                        <td className="text-right py-3 px-3 font-mono text-sm">{m.relevance}</td>
-                        <td className={`text-right py-3 px-3 font-mono text-sm ${isWatchWise ? 'text-emerald-300 font-bold' : isBaseline ? 'text-rose-400' : 'text-slate-300'}`}>
-                          {m.min_member_sat}
-                        </td>
-                        <td className="text-right py-3 px-3 font-mono text-sm">{m.fairness_gap}</td>
-                        <td className="text-right py-3 px-3 font-mono text-sm font-semibold">{m.ndcg5}</td>
-                        <td className="text-right py-3 px-3 font-mono text-sm font-semibold">{m.hit5}</td>
-                        <td className="text-right py-3 px-3 font-mono text-sm">{m.diversity}</td>
+                <div className="overflow-x-auto border border-black/20 bg-white">
+                  <table className="w-full min-w-[1120px] text-left text-xs">
+                    <thead>
+                      <tr className="border-b-2 border-[#1A1A1A] bg-[#F7F6F0] font-mono text-[10px] uppercase tracking-widest text-[#505051]">
+                        <th className="px-4 py-3 font-extrabold">Pipeline model configuration</th>
+                        <th className="px-3 py-3 text-right font-extrabold">Mean relevance</th>
+                        <th className="px-3 py-3 text-right font-extrabold text-[#EA580C]">Min-member sat</th>
+                        <th className="px-3 py-3 text-right font-extrabold">Fairness gap</th>
+                        <th className="px-3 py-3 text-right font-extrabold">NDCG@5</th>
+                        <th className="px-3 py-3 text-right font-extrabold">Hit@5</th>
+                        <th className="px-3 py-3 text-right font-extrabold">Worst NDCG</th>
+                        <th className="px-3 py-3 text-right font-extrabold">Worst Hit</th>
+                        <th className="px-3 py-3 text-right font-extrabold">Diversity</th>
                       </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
+                    </thead>
+                    <tbody className="divide-y divide-black/10">
+                      {result.metrics.map((m) => {
+                        const isWatchWise = m.method === (result.watchwise_method || 'hybrid_rl')
+                        const isBaseline = m.method === 'avg_baseline'
 
-            <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px] text-slate-400 pt-3 border-t border-white/[0.04] font-sans">
-              <div className="p-3 bg-slate-950/40 rounded-lg border border-white/5">
-                <strong className="text-slate-300 block mb-1">Variant Pool Swap:</strong> Holds the sequential policy fixed, swaps NN to Diffusion. Does a generative model find closer consensus vectors?
+                        return (
+                          <tr key={m.method} className={isWatchWise ? 'bg-[#EA580C]/10' : isBaseline ? 'bg-[#F7F6F0]' : 'bg-white'}>
+                            <td className="px-4 py-3">
+                              <div className="font-bold text-[#1A1A1A]">{m.label}</div>
+                              {isBaseline && <div className="mt-1 font-mono text-[9px] font-extrabold uppercase tracking-widest text-[#707070]">Traditional status quo</div>}
+                              {isWatchWise && <div className="mt-1 flex items-center gap-1 font-mono text-[9px] font-extrabold uppercase tracking-widest text-[#EA580C]">
+                                <Star className="h-3 w-3" /> WatchWise optimal stack
+                              </div>}
+                            </td>
+                            <td className="px-3 py-3 text-right font-mono text-sm">{m.relevance}</td>
+                            <td className={`px-3 py-3 text-right font-mono text-sm ${isWatchWise ? 'font-extrabold text-[#EA580C]' : ''}`}>
+                              {m.min_member_sat}
+                            </td>
+                            <td className="px-3 py-3 text-right font-mono text-sm">{m.fairness_gap}</td>
+                            <td className="px-3 py-3 text-right font-mono text-sm">{m.ndcg5}</td>
+                            <td className="px-3 py-3 text-right font-mono text-sm">{m.hit5}</td>
+                            <td className="px-3 py-3 text-right font-mono text-sm">{m.worst_ndcg5}</td>
+                            <td className="px-3 py-3 text-right font-mono text-sm">{m.worst_hit5}</td>
+                            <td className="px-3 py-3 text-right font-mono text-sm">{m.diversity}</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-              <div className="p-3 bg-slate-950/40 rounded-lg border border-white/5">
-                <strong className="text-slate-300 block mb-1">Variant Rerank Swap:</strong> Holds candidate pool fixed, wraps Greedy selector to REINFORCE. Does sequential path modeling raise fairness?
-              </div>
-              <div className="p-3 bg-slate-950/40 rounded-lg border border-white/5">
-                <strong className="text-slate-300 block mb-1">Headline Metric:</strong> Min-member is the minimum value amongst co-viewers percentile rankings. Moving this represents general peace.
-              </div>
-            </div>
-          </div>
 
-          {/* Metrics visualization Chart */}
-          <MetricsChart metrics={result.metrics} />
+              <MetricsChart
+                metrics={result.metrics}
+                watchwiseMethod={result.watchwise_method}
+              />
+            </>
+          )}
 
-          {/* Diffusion pool showcase */}
           {result.diffusion_teaser && result.diffusion_teaser.length > 0 && (
-            <div className="bg-slate-900/30 border border-indigo-500/10 rounded-2xl p-6 shadow-xl relative overflow-hidden font-sans">
+            <div className="swiss-panel p-6">
               <div className="mb-4">
-                <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider block">GENERATIVE SPACE PREVIEW</span>
-                <h3 className="text-sm font-extrabold text-white uppercase tracking-wide">
-                  Compromise Latent Embeddings (Sample from diffusion)
+                <span className="swiss-section-title">Generative space preview</span>
+                <h3 className="mt-1 font-display text-xl font-extrabold uppercase tracking-tight">
+                  Compromise latent embeddings
                 </h3>
-                <p className="text-xs text-slate-400 mt-1">
-                  Instead of database retrieval, our neural denoiser outputs continuous profile points bridging everyone's vectors. Here are the closest real-movie titles to generated sample latents:
+                <p className="mt-2 text-sm leading-relaxed text-[#505051]">
+                  Closest real-movie titles to generated sample latents from the diffusion pool.
                 </p>
               </div>
 
-              <div className="p-4 bg-slate-950/60 rounded-xl border border-white/[0.04] text-xs font-mono font-medium tracking-tight text-indigo-300 flex flex-wrap gap-2 justify-center leading-relaxed">
+              <div className="flex flex-wrap gap-2 border border-black/15 bg-white p-4 font-mono text-xs font-bold text-[#1A1A1A]">
                 {result.diffusion_teaser.map((title, i) => (
-                  <span key={i} className="bg-indigo-950/35 border border-indigo-500/15 py-1.5 px-3 rounded-lg flex items-center gap-1 text-[11px]">
-                    <Film className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                    <span>{title}</span>
+                  <span key={i} className="swiss-tag">
+                    <Film className="h-3.5 w-3.5 text-[#EA580C]" />
+                    {title}
                   </span>
                 ))}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-[11px] text-slate-400 mt-4 pt-3 border-t border-white/[0.04]">
-                <div className="p-3 bg-slate-900/40 border border-white/5 rounded-xl">
-                  <strong className="text-indigo-400 block mb-1">What this means:</strong> WatchWise does not run simple queries like <span className="font-mono bg-slate-950 px-1 py-0.5 text-indigo-300 border border-white/5 rounded text-[10px]">Title contains Science</span>. Instead, the conditional DDPM starts with random Gaussian noise and steps backwards 50 times inside the 64-dimensional rating manifold to synthesize movie specs custom-fit for this exact group.
+              <div className="mt-4 grid grid-cols-1 gap-4 border-t border-dashed border-black/20 pt-4 text-xs leading-relaxed text-[#505051] md:grid-cols-2">
+                <div className="border border-black/15 bg-white p-3">
+                  <strong className="block font-mono text-[10px] uppercase tracking-widest text-[#EA580C]">Meaning</strong>
+                  WatchWise does not run a title keyword query. It denoises inside the rating manifold to synthesize movie specs for this exact group.
                 </div>
-                <div className="p-3 bg-slate-900/40 border border-white/5 rounded-xl">
-                  <strong className="text-indigo-400 block mb-1">Generative specifics:</strong> The conditional state is derived as the group's centroid. Classifier-free guidance of 1.5 forces the output outwards to find creative compromises in niche genre overlap spaces that are rarely queried.
+                <div className="border border-black/15 bg-white p-3">
+                  <strong className="block font-mono text-[10px] uppercase tracking-widest text-[#EA580C]">Generative specifics</strong>
+                  The group's centroid conditions the diffusion path, with guidance pushing output toward creative compromise regions.
                 </div>
               </div>
             </div>

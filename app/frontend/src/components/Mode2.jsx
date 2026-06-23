@@ -1,8 +1,13 @@
 import React, { useState, useEffect } from 'react'
-import { fetchGroups, fetchMode2 } from '../api.js'
+import { fetchGroups, fetchMode2, fetchMode2Custom } from '../api.js'
+import CustomGroupBuilder, {
+  buildCustomMemberPayload,
+  createInitialCustomMembers,
+  customMembersReady,
+} from './CustomGroupBuilder.jsx'
 import GroupPanel from './GroupPanel.jsx'
 import SlateTable from './SlateTable.jsx'
-import { Sparkles, CheckCircle, RefreshCw, Tv, Info, ToggleLeft, ToggleRight, Filter, Play } from 'lucide-react'
+import { CheckCircle, Filter, Play, RefreshCw, ToggleLeft, ToggleRight, Tv } from 'lucide-react'
 
 const OTT_PROVIDERS = [
   'Netflix',
@@ -14,79 +19,116 @@ const OTT_PROVIDERS = [
   'Max',
 ]
 
-function Mode2Insight({ result }) {
-  const slate = result?.watchwise_slate || result?.slate || []
-  if (!result || slate.length === 0) return null
-
-  const selectedProviders = result.selected_providers || OTT_PROVIDERS
-  const genreSet = new Set(slate.flatMap(m => m.genres.split(', ')))
-
+function MetricPair({ baseline, watchwise, accent = false }) {
   return (
-    <div className="relative overflow-hidden bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent border border-emerald-500/20 rounded-2xl p-6 shadow-xl leading-relaxed">
-      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-emerald-500/10 to-transparent pointer-events-none rounded-bl-full animate-pulse" />
-      
-      <div className="flex items-center gap-2 mb-4">
-        <Sparkles className="w-5 h-5 text-emerald-400" />
-        <h3 className="text-sm font-bold text-emerald-300 uppercase tracking-widest">Filter Optimization Results</h3>
+    <div className="grid grid-cols-2 gap-2">
+      <div>
+        <div className="font-display text-2xl font-extrabold tracking-tighter text-[#1A1A1A]">{baseline}</div>
+        <div className="mt-1 font-mono text-[9px] font-extrabold uppercase tracking-widest text-[#707070]">Baseline</div>
       </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
-        <div className="bg-slate-900/80 border border-emerald-500/10 rounded-xl p-4 text-center">
-          <div className="text-2xl font-black text-emerald-400">{Math.round(result.match_rate * 100)}%</div>
-          <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Constraint Match</div>
-        </div>
-        <div className="bg-slate-900/80 border border-emerald-500/10 rounded-xl p-4 text-center">
-          <div className="text-2xl font-black text-indigo-400">{slate.length}</div>
-          <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Movies Emitted</div>
-        </div>
-        <div className="bg-slate-900/80 border border-emerald-500/10 rounded-xl p-4 text-center">
-          <div className="text-2xl font-black text-cyan-400">{selectedProviders.length}</div>
-          <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">OTT Services</div>
-        </div>
-        <div className="bg-slate-900/80 border border-emerald-500/10 rounded-xl p-4 text-center">
-          <div className="text-2xl font-black text-amber-400">{genreSet.size}</div>
-          <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Genres Covered</div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-        <div className="p-4 bg-slate-950/70 border border-white/5 rounded-xl space-y-1">
-          <div className="flex items-center gap-1.5 text-emerald-400 font-bold">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-            <span>Guaranteed Legitimate Selection</span>
-          </div>
-          <p className="text-slate-400 leading-normal">
-            Every recommendation is limited to the OTT services selected above, then checked for certification and runtime. The baseline and WatchWise slate now compete inside the same streamable catalog slice.
-          </p>
-        </div>
-
-        <div className="p-4 bg-slate-950/70 border border-white/5 rounded-xl space-y-1">
-          <div className="flex items-center gap-1.5 text-indigo-400 font-bold">
-            <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
-            <span>Smart Candidate Pruning</span>
-          </div>
-          <p className="text-slate-400 leading-normal">
-            Instead of searching an already heavily compressed subset of popular movies, WatchWise synthesizes 100 specialized vectors from scratch, applies constraints, and picks the most equitable combination. This maintains highly specific indie alternatives in the search space.
-          </p>
-        </div>
+      <div className="border-l border-black/15 pl-3">
+        <div className={`font-display text-2xl font-extrabold tracking-tighter ${accent ? 'text-[#EA580C]' : 'text-[#1A1A1A]'}`}>{watchwise}</div>
+        <div className="mt-1 font-mono text-[9px] font-extrabold uppercase tracking-widest text-[#707070]">WatchWise</div>
       </div>
     </div>
   )
 }
 
+function Mode2Insight({ result }) {
+  const slate = result?.watchwise_slate || result?.slate || []
+  if (!result || slate.length === 0) return null
+
+  const genreSet = new Set(slate.flatMap(m => m.genres.split(', ')))
+  const baselineMetrics = result.metrics?.avg_baseline
+  const watchwiseMetrics = result.metrics?.[result.watchwise_method]
+  const showMeasuredMetrics = !result.custom && baselineMetrics && watchwiseMetrics
+
+  return (
+    <div className="swiss-panel-strong border-t-[#EA580C] p-5">
+      <div className="mb-5 flex flex-col gap-3 border-b border-dashed border-black/20 pb-4 md:flex-row md:items-end md:justify-between">
+        <div>
+          <span className="swiss-section-title">Filter Optimization Results</span>
+          <h3 className="mt-1 font-display text-2xl font-extrabold uppercase tracking-tighter">
+            Streamable slate verified
+          </h3>
+        </div>
+        <span className="swiss-tag swiss-tag-accent">{result.watchwise_method || 'watchwise'}</span>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <div className="border border-black/15 bg-white p-4">
+          {showMeasuredMetrics ? (
+            <MetricPair baseline={baselineMetrics.hit5} watchwise={watchwiseMetrics.hit5} accent />
+          ) : (
+            <div className="font-display text-3xl font-extrabold tracking-tighter text-[#EA580C]">{Math.round(result.match_rate * 100)}%</div>
+          )}
+          <div className="mt-2 font-mono text-[10px] font-bold uppercase tracking-widest text-[#505051]">
+            {result.custom ? 'Constraint match' : 'Held-out Hit@5'}
+          </div>
+        </div>
+        <div className="border border-black/15 bg-white p-4">
+          {showMeasuredMetrics ? (
+            <MetricPair baseline={baselineMetrics.ndcg5} watchwise={watchwiseMetrics.ndcg5} />
+          ) : (
+            <div className="font-display text-3xl font-extrabold tracking-tighter">{slate.length}</div>
+          )}
+          <div className="mt-2 font-mono text-[10px] font-bold uppercase tracking-widest text-[#505051]">
+            {result.custom ? 'Profile slate size' : 'Held-out NDCG'}
+          </div>
+        </div>
+        <div className="border border-black/15 bg-white p-4">
+          <div className="font-display text-3xl font-extrabold tracking-tighter">{Math.round(result.match_rate * 100)}%</div>
+          <div className="mt-2 font-mono text-[10px] font-bold uppercase tracking-widest text-[#505051]">Constraint match</div>
+        </div>
+        <div className="border border-black/15 bg-white p-4">
+          <div className="font-display text-3xl font-extrabold tracking-tighter">{genreSet.size}</div>
+          <div className="mt-2 font-mono text-[10px] font-bold uppercase tracking-widest text-[#505051]">Genres covered</div>
+        </div>
+      </div>
+
+      <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="border-l-4 border-[#EA580C] bg-white p-4">
+          <div className="font-mono text-[10px] font-extrabold uppercase tracking-widest text-[#EA580C]">Legitimate selection</div>
+          <p className="mt-2 text-xs leading-relaxed text-[#505051]">
+            Every recommendation is limited to the selected OTT services, then checked for certification and runtime constraints.
+          </p>
+        </div>
+
+        <div className="border-l-4 border-[#1A1A1A] bg-white p-4">
+          <div className="font-mono text-[10px] font-extrabold uppercase tracking-widest text-[#1A1A1A]">Candidate pruning</div>
+          <p className="mt-2 text-xs leading-relaxed text-[#505051]">
+            WatchWise synthesizes candidates first, then applies constraints so narrower catalogs still preserve personalized alternatives.
+          </p>
+        </div>
+      </div>
+      {result.metric_note && (
+        <div className="mt-5 border-l-4 border-[#1A1A1A] bg-white p-4 text-xs leading-relaxed text-[#505051]">
+          {result.metric_note}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Mode2() {
-  const [kind, setKind] = useState('random')
+  const [kind, setKind] = useState('divergent')
+  const [groupSource, setGroupSource] = useState('preset')
   const [groups, setGroups] = useState([])
   const [selectedGid, setSelectedGid] = useState(null)
+  const [customMembers, setCustomMembers] = useState(createInitialCustomMembers)
   const [allowTeen, setAllowTeen] = useState(true)
   const [selectedProviders, setSelectedProviders] = useState(OTT_PROVIDERS)
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
   const [showFiltersDeepDive, setShowFiltersDeepDive] = useState(false)
-  const canRun = Boolean(selectedGid) && selectedProviders.length > 0
+  const canRun = selectedProviders.length > 0 && (
+    groupSource === 'custom'
+      ? customMembersReady(customMembers)
+      : Boolean(selectedGid)
+  )
 
   useEffect(() => {
-    fetchGroups(kind).then((data) => {
+    fetchGroups(kind, 'mode2').then((data) => {
       setGroups(data.groups)
       if (data.groups.length > 0) setSelectedGid(data.groups[0].gid)
     })
@@ -107,7 +149,9 @@ export default function Mode2() {
     setLoading(true)
     setResult(null)
     try {
-      const data = await fetchMode2(selectedGid, allowTeen, selectedProviders)
+      const data = groupSource === 'custom'
+        ? await fetchMode2Custom(buildCustomMemberPayload(customMembers), allowTeen, selectedProviders)
+        : await fetchMode2(selectedGid, allowTeen, selectedProviders)
       setResult(data)
     } finally {
       setLoading(false)
@@ -119,110 +163,164 @@ export default function Mode2() {
   const visibleProviders = result?.selected_providers || selectedProviders
 
   return (
-    <div className="space-y-8 font-sans text-slate-100">
-      {/* Informative Header Cards */}
-      <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-        <div className="lg:col-span-7 bg-slate-900/20 border border-white/5 rounded-2xl p-6 flex flex-col justify-between space-y-4">
-          <div>
-            <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider block mb-1.5">STREAMABILITY ENGINE</span>
-            <h2 className="text-xl font-extrabold text-white tracking-tight">Coping with Real-World Constraints</h2>
-            <p className="text-xs text-slate-400 mt-2 leading-relaxed">
-              In reality, a wonderful movie recommendation is useless if you don't subscribe to the streaming service, or if the film runs 3 hours on a weeknight, or has certifications entirely unsafe for the youngsters in the living room.
+    <div className="space-y-8 text-[#1A1A1A]">
+      <section className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        <div className="swiss-panel-strong p-6 lg:col-span-7">
+          <span className="swiss-section-title">Mode 2 · Streamability Engine</span>
+          <h2 className="mt-2 font-display text-3xl font-extrabold uppercase tracking-tighter">
+            Real-world constraints before movie night
+          </h2>
+          <div className="mt-4 space-y-3 text-sm leading-relaxed text-[#505051]">
+            <p>
+              A strong recommendation fails if it is not available on the household's subscriptions, runs too long, or falls outside the safety band.
             </p>
-            <p className="text-xs text-slate-400 mt-2 leading-relaxed">
-              WatchWise Mode 2 handles these factors head-on by feeding generated candidate spaces through real-world filters: <strong className="text-cyan-400 font-medium">OTT subscription availability</strong>, <strong className="text-cyan-400 font-medium">age-safety bands</strong>, and <strong className="text-cyan-400 font-medium">runtime strictness</strong>.
+            <p>
+              Mode 2 applies selected OTT availability, age-safety, and runtime constraints while preserving the same recommendation pipeline.
             </p>
           </div>
-
-          <div className="flex items-center gap-1.5 bg-cyan-950/20 border border-cyan-500/15 p-3 rounded-xl text-[11px] text-cyan-300">
-            <Info className="w-4 h-4 shrink-0" />
-            <span>Ensures 100% genuine streamability without sacrificing individual fairness metrics.</span>
+          <div className="mt-6 border-l-4 border-[#EA580C] bg-white p-3 font-mono text-[11px] font-bold uppercase tracking-wide text-[#404040]">
+            Hard constraints become part of the evaluated catalog slice.
+          </div>
+          <div className="mt-6 border-t border-black/10 pt-5">
+            <div className="swiss-section-title mb-3">Technical Approach</div>
+            <dl className="space-y-3 text-sm leading-relaxed text-[#505051]">
+              {[
+                {
+                  k: 'Pipeline',
+                  v: (
+                    <>
+                      Mode 2 reuses the exact trained stack from Mode 1 — <strong className="font-semibold text-[#1A1A1A]">128-D matrix factorization</strong>, the <strong className="font-semibold text-[#1A1A1A]">group-conditioned diffusion</strong> generator, and the <strong className="font-semibold text-[#1A1A1A]">REINFORCE</strong> reranker. Only the candidate universe changes.
+                    </>
+                  ),
+                },
+                {
+                  k: 'Hard gates',
+                  v: (
+                    <>
+                      Three constraints — <strong className="font-semibold text-[#1A1A1A]">OTT availability</strong> by region, <strong className="font-semibold text-[#1A1A1A]">runtime ≤ 150 min</strong>, and <strong className="font-semibold text-[#1A1A1A]">family-safe certification</strong> — are applied <strong className="font-semibold text-[#1A1A1A]">before any scoring</strong>, so the generator and reranker only ever see watchable titles.
+                    </>
+                  ),
+                },
+                {
+                  k: 'Generation',
+                  v: (
+                    <>
+                      Because the <strong className="font-semibold text-[#1A1A1A]">diffusion</strong> generator emits a <strong className="font-semibold text-[#1A1A1A]">continuous compromise pool</strong>, far more precise options survive the filters than a small filter-first NN subset would leave behind.
+                    </>
+                  ),
+                },
+                {
+                  k: 'Inference',
+                  v: (
+                    <>
+                      The <strong className="font-semibold text-[#1A1A1A]">w₂ max-min</strong> fairness term stays active inside the reranker even under the hard gates, and non-circular <strong className="font-semibold text-[#1A1A1A]">Hit@5</strong> is still reported on the filtered catalog slice.
+                    </>
+                  ),
+                },
+              ].map(({ k, v }) => (
+                <div key={k} className="sm:grid sm:grid-cols-[120px_1fr] sm:gap-4">
+                  <dt className="mb-1 font-mono text-[10px] font-extrabold uppercase tracking-widest text-[#EA580C] sm:mb-0 sm:pt-0.5">
+                    {k}
+                  </dt>
+                  <dd>{v}</dd>
+                </div>
+              ))}
+            </dl>
           </div>
         </div>
 
-        <div className="lg:col-span-5 bg-gradient-to-tr from-slate-900/60 to-slate-900/20 border border-white/5 rounded-2xl p-6 flex flex-col justify-between">
-          <div className="space-y-2">
-            <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider block">PIPELINE ADAPTATION</span>
-            <h3 className="text-sm font-extrabold text-white uppercase tracking-wide">Pruning Sequence</h3>
-          </div>
-
-          <div className="space-y-3.5 my-4">
-            <div className="flex items-center gap-2.5 p-2.5 bg-rose-500/5 rounded-xl border border-rose-500/10 text-xs">
-              <span className="font-bold text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded uppercase font-mono">Filter-First</span>
-              <div className="text-slate-400 text-[11px]">Filters down catalog first. Personalization decays into a few generic mainstream items.</div>
+        <div className="swiss-panel flex flex-col p-6 lg:col-span-5">
+          <span className="swiss-section-title">Pipeline Adaptation</span>
+          <h3 className="mt-2 font-display text-xl font-extrabold uppercase tracking-tight">
+            Pruning sequence
+          </h3>
+          <div className="mt-5 grid flex-1 gap-3">
+            <div className="border border-black/15 bg-white p-4">
+              <span className="swiss-tag">Filter-first</span>
+              <p className="mt-2 text-[13px] leading-relaxed text-[#505051]">
+                A filter-first recommender trims the catalog to one service, family-safe ratings, and runtime first, then averages the remaining embeddings. It may predict <strong className="font-semibold text-[#1A1A1A]">Finding Nemo</strong> or <strong className="font-semibold text-[#1A1A1A]">The Incredibles</strong> because they are popular, short enough, and broadly safe.
+              </p>
+              <div className="mt-2.5 border-t border-black/10 pt-2">
+                <span className="font-mono text-[9px] font-extrabold uppercase tracking-widest text-[#909090]">Where it fails</span>
+                <p className="mt-1 text-xs leading-relaxed text-[#606060]">
+                  The constraints erase the interesting middle before taste modeling happens. The final prediction is watchable, but it can ignore a parent&apos;s mystery preference and a teen&apos;s sci-fi preference, returning the obvious repeat instead of a true compromise.
+                </p>
+              </div>
             </div>
-            <div className="flex items-center gap-2.5 p-2.5 bg-emerald-500/5 rounded-xl border border-emerald-500/10 text-xs">
-              <span className="font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded uppercase font-mono">WatchWise</span>
-              <div className="text-slate-300 text-[11px]">Generates 100 compromise vectors first, then applies constraints. Personalizes deep gems.</div>
+            <div className="border border-[#EA580C]/35 bg-white p-4">
+              <span className="swiss-tag swiss-tag-accent">WatchWise</span>
+              <p className="mt-2 text-[13px] leading-relaxed text-[#505051]">
+                WatchWise first builds the group compromise in latent space, then applies OTT, runtime, and safety gates before reranking. Under the same household filters, it can keep options like <strong className="font-semibold text-[#1A1A1A]">Kubo and the Two Strings</strong>, <strong className="font-semibold text-[#1A1A1A]">Hunt for the Wilderpeople</strong>, or <strong className="font-semibold text-[#1A1A1A]">Apollo 13</strong> alive.
+              </p>
+              <div className="mt-2.5 border-t border-[#EA580C]/20 pt-2">
+                <span className="font-mono text-[9px] font-extrabold uppercase tracking-widest text-[#B84309]">Where it wins</span>
+                <p className="mt-1 text-xs leading-relaxed text-[#606060]">
+                  The selected movie is still streamable, age-appropriate, and under the time limit, but it is chosen from candidates already shaped around the family&apos;s tastes. The filters become hard gates, not the whole recommendation strategy.
+                </p>
+              </div>
             </div>
           </div>
-
-          <p className="text-[10px] text-slate-500 italic block mt-1">
-            Uses TMDb provider metadata to map stream paths against the services selected below.
+          <p className="mt-5 border-t border-dashed border-black/20 pt-3 font-mono text-[10px] uppercase tracking-wide text-[#707070]">
+            Uses provider metadata to map stream paths against selected services.
           </p>
         </div>
       </section>
 
-      {/* TECHNICAL COLLAPSIBLE */}
-      <div className="border border-white/5 bg-slate-900/20 rounded-2xl overflow-hidden">
-        <button 
+      <div className="swiss-panel overflow-hidden">
+        <button
+          type="button"
           onClick={() => setShowFiltersDeepDive(!showFiltersDeepDive)}
-          className="w-full flex items-center justify-between p-5 text-left text-xs font-bold text-slate-300 hover:text-white hover:bg-slate-900/30 transition-all select-none"
+          className="flex w-full items-center justify-between gap-4 border-b border-black/15 bg-[#FAF9F6] p-5 text-left transition-colors hover:bg-white"
         >
-          <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-cyan-400" />
-            <span>CRITERIA PARSING SCHEMA & LOGISTICS</span>
+          <div className="flex items-center gap-2 font-mono text-xs font-extrabold uppercase tracking-widest text-[#1A1A1A]">
+            <Filter className="h-4 w-4 text-[#EA580C]" />
+            Criteria parsing schema and logistics
           </div>
-          <span className="text-[10px] font-bold text-cyan-400 bg-cyan-500/10 px-2.5 py-0.5 rounded border border-cyan-500/20">
-            {showFiltersDeepDive ? 'HIDE SCHEMA' : 'EXPAND CRITERIA PARSER'}
-          </span>
+          <span className="swiss-tag swiss-tag-accent">{showFiltersDeepDive ? 'Hide schema' : 'Expand parser'}</span>
         </button>
 
         {showFiltersDeepDive && (
-          <div className="p-6 border-t border-white/[0.04] bg-slate-950/60 text-xs text-slate-400 space-y-4 leading-relaxed border-dashed">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="p-4 bg-slate-900/40 border border-white/5 rounded-xl space-y-2">
-                <div className="font-bold text-slate-200 uppercase tracking-widest text-[10px] text-cyan-400 pb-1 border-b border-white/[0.04]">Aggressive Constraints Imposed</div>
-                <ul className="space-y-1 list-disc list-inside text-slate-300 text-[11px]">
-                  <li><strong>Subscribed OTT:</strong> Retains only movies available on selected services</li>
-                  <li><strong>Provider intersection:</strong> Keeps movies found on at least one selected OTT subscription</li>
-                  <li><strong>Strict limit:</strong> Runtime must remain under max_runtime_min (e.g. 150m)</li>
-                  <li><strong>Age safety:</strong> Must fall inside family-safe or older-teen safety bands</li>
-                </ul>
+          <div className="grid grid-cols-1 gap-5 p-5 text-xs leading-relaxed text-[#505051] md:grid-cols-2">
+            <div className="border border-black/15 bg-white p-4">
+              <div className="border-b border-black/15 pb-2 font-mono text-[10px] font-extrabold uppercase tracking-widest text-[#EA580C]">
+                Aggressive constraints imposed
               </div>
-              <div className="p-4 bg-slate-900/40 border border-white/5 rounded-xl space-y-2">
-                <div className="font-bold text-slate-200 uppercase tracking-widest text-[10px] text-cyan-400 pb-1 border-b border-white/[0.04]">Why this is technically superior</div>
-                <p className="text-[11px]">By generating a large 100-dimensional continuous pool adapted to group tastes first, even after filters eliminate 35% of options, we are left with 65 incredibly precise items. Under old methods, filtering first leaves less than 1% of catalog items, meaning users get recommended simple generic blockbusters.</p>
-              </div>
+              <ul className="mt-3 list-inside list-disc space-y-1">
+                <li>Retains only movies available on selected services.</li>
+                <li>Keeps movies found on at least one selected OTT subscription.</li>
+                <li>Requires runtime under the configured maximum.</li>
+                <li>Restricts certification to family-safe or older-teen bands.</li>
+              </ul>
             </div>
-            <div className="p-3 bg-cyan-950/10 border border-cyan-500/15 rounded-lg text-[11px] text-slate-400">
-              <strong>Provider-aware filtering:</strong> The selected subscriptions become hard constraints, so baseline and WatchWise are judged only on movies that can actually stream tonight.
+            <div className="border border-black/15 bg-white p-4">
+              <div className="border-b border-black/15 pb-2 font-mono text-[10px] font-extrabold uppercase tracking-widest text-[#EA580C]">
+                Technical advantage
+              </div>
+              <p className="mt-3">
+                A generated continuous pool leaves more precise options after filtering than a small filter-first retrieval subset.
+              </p>
             </div>
           </div>
         )}
       </div>
 
-      {/* FILTER CONTROL CENTER */}
-      <section className="bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-2xl p-6 shadow-xl relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-24 h-24 bg-gradient-to-br from-cyan-500/5 to-transparent pointer-events-none rounded-br-full" />
-        
-        <div className="mb-4">
-          <h3 className="text-base font-extrabold text-white flex items-center gap-2">
-            <Tv className="text-cyan-400 w-4.5 h-4.5" />
-            <span>Interactive Constraint Matrix</span>
+      <section className="swiss-panel-strong p-6">
+        <div className="mb-5">
+          <h3 className="flex items-center gap-2 font-display text-2xl font-extrabold uppercase tracking-tighter">
+            <Tv className="h-5 w-5 text-[#EA580C]" />
+            Interactive constraint matrix
           </h3>
-          <p className="text-xs text-slate-400 mt-1">
-            Choose OTT subscriptions together with group properties to run the constrained recommendation pipeline.
+          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-[#505051]">
+            Choose OTT subscriptions, group properties, and age-safety behavior before running constrained recommendation.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-5 items-stretch">
-          {/* Providers */}
-          <div className="lg:col-span-4 space-y-2">
-            <label className="block text-[11px] font-bold tracking-wider text-slate-400 uppercase">1. OTT Subscriptions</label>
-            <div className="rounded-xl border border-white/5 bg-slate-950/70 p-3">
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
+          <div className="space-y-2 lg:col-span-4">
+            <label className="swiss-label">1. OTT subscriptions</label>
+            <div className="border border-black/20 bg-white p-3">
+              <div className="mb-3 flex items-center justify-between gap-2 border-b border-black/10 pb-2">
+                <span className="font-mono text-[10px] font-extrabold uppercase tracking-widest text-[#606060]">
                   Available services
                 </span>
                 <button
@@ -231,7 +329,7 @@ export default function Mode2() {
                     setSelectedProviders(OTT_PROVIDERS)
                     setResult(null)
                   }}
-                  className="text-[9.5px] font-bold uppercase tracking-wider text-cyan-300 hover:text-cyan-200"
+                  className="font-mono text-[10px] font-extrabold uppercase tracking-widest text-[#EA580C]"
                 >
                   Select all
                 </button>
@@ -244,147 +342,172 @@ export default function Mode2() {
                       key={provider}
                       type="button"
                       onClick={() => toggleProvider(provider)}
-                      className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[10px] font-bold transition-all ${
+                      className={`inline-flex items-center gap-1.5 border px-2.5 py-1.5 font-mono text-[10px] font-extrabold uppercase tracking-wide transition-colors ${
                         checked
-                          ? 'border-cyan-400/40 bg-cyan-500/15 text-cyan-200'
-                          : 'border-white/10 bg-slate-900 text-slate-500 hover:border-white/20 hover:text-slate-300'
+                          ? 'border-[#EA580C] bg-[#EA580C]/10 text-[#B84309]'
+                          : 'border-black/20 bg-[#FAF9F6] text-[#606060] hover:border-[#1A1A1A] hover:text-[#1A1A1A]'
                       }`}
                     >
-                      <CheckCircle className={`h-3.5 w-3.5 ${checked ? 'text-cyan-300' : 'text-slate-600'}`} />
+                      <CheckCircle className="h-3.5 w-3.5" />
                       <span>{provider}</span>
                     </button>
                   )
                 })}
               </div>
               {selectedProviders.length === 0 && (
-                <div className="mt-2 text-[10px] font-medium text-rose-300">
+                <div className="mt-3 border-l-4 border-[#EA580C] bg-[#F7F6F0] p-2 font-mono text-[10px] font-bold uppercase tracking-wide text-[#B84309]">
                   Select at least one provider to run constrained inference.
                 </div>
               )}
             </div>
           </div>
 
-          {/* Group Diff */}
-          <div className="lg:col-span-3 space-y-2 flex flex-col justify-between">
-            <div className="space-y-1.5">
-              <label className="block text-[11px] font-bold tracking-wider text-slate-400 uppercase">2. Group Tension Kind</label>
-              <select
-                value={kind}
-                onChange={(e) => setKind(e.target.value)}
-                className="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-3 text-xs text-slate-100 focus:outline-none focus:border-cyan-500 transition-colors"
-              >
-                <option value="divergent">Divergent (Difficult)</option>
-                <option value="similar">Similar (Consistent)</option>
-                <option value="random">Random (Mixed)</option>
-              </select>
+          <div className="space-y-2 lg:col-span-3">
+            <label className="swiss-label">2. Choose household cohort</label>
+            <div className="mb-3 grid grid-cols-2 border border-black/20 bg-white p-1">
+              {[
+                ['preset', 'Preset'],
+                ['custom', 'Custom'],
+              ].map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => {
+                    setGroupSource(value)
+                    setResult(null)
+                  }}
+                  className={`px-2 py-2 font-mono text-[10px] font-extrabold uppercase tracking-widest transition-colors ${
+                    groupSource === value
+                      ? 'bg-[#1A1A1A] text-white'
+                      : 'text-[#505051] hover:bg-[#F7F6F0] hover:text-[#1A1A1A]'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
-
-            <div className="space-y-1.5">
-              <label className="block text-[11px] font-bold tracking-wider text-slate-400 uppercase">3. Choose Group</label>
+            {groupSource === 'preset' ? (
               <select
                 value={selectedGid || ''}
                 onChange={(e) => setSelectedGid(Number(e.target.value))}
-                className="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-3 text-xs text-slate-100 focus:outline-none focus:border-cyan-500 transition-colors font-mono"
+                className="swiss-select"
               >
                 {groups.map((g) => (
                   <option key={g.gid} value={g.gid}>{g.label}</option>
                 ))}
               </select>
-            </div>
+            ) : (
+              <div className="border border-black/20 bg-white p-3 text-xs leading-relaxed text-[#505051]">
+                Custom group editor opens below the constraint row.
+              </div>
+            )}
           </div>
 
-          {/* Teen allow & Button */}
-          <div className="lg:col-span-5 flex flex-col justify-between gap-4">
-            <div className="p-4 rounded-xl bg-slate-950 border border-white/5 flex items-center justify-between">
-              <div className="space-y-1 min-w-0">
-                <span className="block text-xs font-bold text-slate-200">Older-Teen Ratings</span>
-                <span className="block text-[10px] text-slate-500">Allow older-teen safety bands</span>
+          <div className="flex flex-col justify-between gap-4 lg:col-span-5">
+            <div className="border border-black/20 bg-white p-4">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <span className="block font-display text-lg font-extrabold uppercase tracking-tight">Older-teen ratings</span>
+                  <span className="block text-xs text-[#606060]">Allow older-teen safety bands.</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAllowTeen(!allowTeen)}
+                  className="text-[#EA580C] focus:outline-none"
+                  aria-pressed={allowTeen}
+                >
+                  {allowTeen ? (
+                    <ToggleRight className="h-10 w-10" />
+                  ) : (
+                    <ToggleLeft className="h-10 w-10 text-[#707070]" />
+                  )}
+                </button>
               </div>
-              <button 
-                onClick={() => setAllowTeen(!allowTeen)}
-                className="text-cyan-400 focus:outline-none shrink-0"
-              >
-                {allowTeen ? (
-                  <ToggleRight className="w-9 h-9" />
-                ) : (
-                  <ToggleLeft className="w-9 h-9 text-slate-600" />
-                )}
-              </button>
             </div>
 
             <button
+              type="button"
               onClick={handleRecommend}
               disabled={loading || !canRun}
-              className="w-full relative flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-cyan-600 to-indigo-500 text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:from-cyan-500 hover:to-indigo-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-lg shadow-indigo-500/10"
+              className="swiss-button w-full py-4"
             >
               {loading ? (
                 <>
-                  <RefreshCw className="animate-spin w-4 h-4 text-white" />
-                  <span>Pruning candidates...</span>
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  <span>Recommending…</span>
                 </>
               ) : (
                 <>
-                  <Play className="w-4 h-4 fill-white" />
-                  <span>{selectedProviders.length === 0 ? 'Select an OTT provider' : 'Generate Constrained slate'}</span>
+                  <Play className="h-4 w-4" />
+                  <span>
+                    {selectedProviders.length === 0
+                      ? 'Choose a service'
+                      : groupSource === 'custom' && !customMembersReady(customMembers)
+                        ? 'Finish your group'
+                        : 'Recommend Movies'}
+                  </span>
                 </>
               )}
             </button>
           </div>
+
+          {groupSource === 'custom' && (
+            <div className="lg:col-span-12">
+              <CustomGroupBuilder
+                members={customMembers}
+                onMembersChange={(next) => {
+                  setCustomMembers(next)
+                  setResult(null)
+                }}
+                compact
+              />
+            </div>
+          )}
         </div>
       </section>
 
-      {/* RESULT GRID */}
       {result && (
         <div className="space-y-8">
           <GroupPanel group={result.group} />
 
           <Mode2Insight result={result} />
 
-          {/* Film watch list */}
-          <div className="bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-2xl p-6 shadow-xl relative overflow-hidden">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 pb-4 border-b border-white/[0.04]">
-              <div className="flex items-center gap-2">
-                <Tv className="w-5 h-5 text-cyan-400" />
-                <h3 className="text-sm font-extrabold text-white uppercase tracking-wider">
-                  Verified Family Watchlist Tonight
+          <div className="swiss-panel-strong p-6">
+            <div className="mb-5 flex flex-col gap-3 border-b border-dashed border-black/20 pb-4 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <span className="swiss-section-title">Verified family watchlist tonight</span>
+                <h3 className="mt-1 font-display text-xl font-extrabold uppercase tracking-tight">
+                  Selected OTT catalog slice
                 </h3>
               </div>
-              <span className="text-[10px] uppercase font-mono font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-md">
-                {Math.round(result.match_rate * 100)}% absolute constraint match rate
+              <span className="swiss-tag swiss-tag-accent">
+                {Math.round(result.match_rate * 100)}% match rate
               </span>
             </div>
-            
-            <p className="text-xs text-slate-400 mb-4 leading-normal">
-              Both slates are generated within the selected OTT set: <strong className="text-cyan-300">{visibleProviders.join(', ')}</strong>. The <strong className="text-indigo-400">Caters To</strong> tags show whose taste vectors are most directly served.
+
+            <p className="mb-5 text-sm leading-relaxed text-[#505051]">
+              Both slates are generated within the selected OTT set: <strong>{visibleProviders.join(', ')}</strong>. The Caters To tags show whose taste vectors are served.
             </p>
 
-            <div className="grid grid-cols-1 2xl:grid-cols-2 gap-5">
+            <div className="grid grid-cols-1 gap-6 2xl:grid-cols-2">
               <div className="space-y-3">
-                <div className="flex items-center justify-between gap-3">
+                <div className="flex items-end justify-between gap-3">
                   <div>
-                    <h4 className="text-xs font-extrabold uppercase tracking-wider text-rose-300">
-                      Traditional Baseline
-                    </h4>
-                    <p className="text-[10px] text-slate-500">Average predicted score after identical OTT filtering.</p>
+                    <h4 className="font-display text-lg font-extrabold uppercase tracking-tight">Traditional baseline</h4>
+                    <p className="text-xs text-[#606060]">Average predicted score after identical OTT filtering.</p>
                   </div>
-                  <span className="shrink-0 rounded-md border border-rose-500/20 bg-rose-500/10 px-2 py-1 text-[9.5px] font-black uppercase tracking-wider text-rose-300">
-                    {Math.round((result.baseline_match_rate ?? 0) * 100)}% match
-                  </span>
+                  <span className="swiss-tag">{Math.round((result.baseline_match_rate ?? 0) * 100)}% match</span>
                 </div>
                 <SlateTable slate={baselineSlate} showFilters={true} pickLabel="Baseline pick under selected OTT" />
               </div>
 
               <div className="space-y-3">
-                <div className="flex items-center justify-between gap-3">
+                <div className="flex items-end justify-between gap-3">
                   <div>
-                    <h4 className="text-xs font-extrabold uppercase tracking-wider text-emerald-300">
-                      WatchWise Collective
-                    </h4>
-                    <p className="text-[10px] text-slate-500">Diffusion candidate slate optimized for equitable group fit.</p>
+                    <h4 className="font-display text-lg font-extrabold uppercase tracking-tight text-[#EA580C]">WatchWise collective</h4>
+                    <p className="text-xs text-[#606060]">Best curated WatchWise stack under identical OTT filtering.</p>
                   </div>
-                  <span className="shrink-0 rounded-md border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-[9.5px] font-black uppercase tracking-wider text-emerald-300">
-                    {Math.round(result.match_rate * 100)}% match
-                  </span>
+                  <span className="swiss-tag swiss-tag-accent">{Math.round(result.match_rate * 100)}% match</span>
                 </div>
                 <SlateTable
                   slate={watchwiseSlate}
@@ -396,20 +519,17 @@ export default function Mode2() {
             </div>
           </div>
 
-          {/* Reading columns card */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-4 bg-slate-900/10 border border-white/5 rounded-xl space-y-1">
-              <strong className="text-xs text-slate-200 block font-bold">Predictive Rating</strong>
-              <p className="text-[11px] text-slate-500 leading-normal">The overall predicted satisfaction. Higher denotes higher average appeal to the entire family cohort.</p>
-            </div>
-            <div className="p-4 bg-slate-900/10 border border-white/5 rounded-xl space-y-1">
-              <strong className="text-xs text-slate-200 block font-bold">Caters To</strong>
-              <p className="text-[11px] text-slate-500 leading-normal">Specifies precisely which extreme user taste profiles are directly satisfied by this item.</p>
-            </div>
-            <div className="p-4 bg-slate-900/10 border border-white/5 rounded-xl space-y-1">
-              <strong className="text-xs text-slate-200 block font-bold">Hard Constraints Met</strong>
-              <p className="text-[11px] text-slate-500 leading-normal">Confirms selected OTT availability, age rating, and clock-runtime parameters. Ready to play tonight without delay.</p>
-            </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            {[
+              ['Predictive Rating', 'Overall predicted satisfaction. Higher denotes higher average appeal to the family cohort.'],
+              ['Caters To', 'Specifies which user taste profiles are directly satisfied by the item.'],
+              ['Hard Constraints Met', 'Confirms selected OTT availability, age rating, and runtime parameters.'],
+            ].map(([title, copy]) => (
+              <div key={title} className="swiss-panel p-4">
+                <strong className="block font-mono text-[10px] font-extrabold uppercase tracking-widest text-[#EA580C]">{title}</strong>
+                <p className="mt-2 text-xs leading-relaxed text-[#505051]">{copy}</p>
+              </div>
+            ))}
           </div>
         </div>
       )}
