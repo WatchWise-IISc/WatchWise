@@ -17,8 +17,8 @@ if str(ROOT) not in sys.path:
 
 def parse_args(description: str = "") -> argparse.Namespace:
     p = argparse.ArgumentParser(description=description)
-    p.add_argument("--phase", default="phase1", choices=["phase1", "phase2"],
-                   help="phase1=ml-latest-small (dev), phase2=ml-25m (scale)")
+    p.add_argument("--phase", default="phase2", choices=["phase1", "phase2"],
+                   help="phase2=ml-25m (default), phase1=ml-latest-small (dev)")
     p.add_argument("--accelerator", default="auto",
                    help="auto | cpu/none | mps | cuda/p100 | cuda_multi/t4x2 | tpu")
     p.add_argument("--no-text-encoder", action="store_true",

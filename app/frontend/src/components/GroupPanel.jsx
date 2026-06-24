@@ -25,7 +25,7 @@ export default function GroupPanel({ group }) {
 
         <div className="flex flex-wrap items-center gap-2">
           <span className={`swiss-tag ${isDivergent ? 'swiss-tag-accent' : ''}`}>
-            {isCustom ? 'custom cold-start' : `${group.kind} taste friction`}
+            {isCustom ? 'custom group' : `${group.kind} taste friction`}
           </span>
           <span className="swiss-tag">
             {group.num_members} co-viewers

@@ -43,7 +43,7 @@ next to mean relevance and the **non-circular** held-out **NDCG@5 / Hit@5**.
 ```bash
 pip install -r requirements.txt
 
-# Full pipeline: download -> MF -> diffusion -> groups -> RL -> evaluation
+# Full phase2 pipeline: download -> MF -> diffusion -> groups -> RL -> evaluation
 python scripts/run_all.py --accelerator auto
 ```
 
@@ -54,17 +54,17 @@ each caches its output under `data/cache/<dataset>/`, and results land in `resul
 
 ```bash
 pip install -r requirements.txt
-./app/start.sh                       # phase2 by default; --phase phase1 for the small dataset
+./app/start.sh                       # phase2 app, fixed local ports
 # Frontend: http://localhost:18791   Backend: http://localhost:18790/docs
-# (start.sh always uses these custom ports to avoid clashing with default Vite:5173 / uvicorn:8000)
+# (start.sh always uses this backend/frontend port pair)
 ```
 
 `start.sh` installs the frontend deps (`npm install`) and, on first run, **downloads the
 phase2 model-artifact cache (~416 MB) from the GitHub Release** into `data/cache/ml-25m/`
 (the binaries are too large for plain git, so `data/cache/` is gitignored). The download
 needs the Release `phase2-cache` to exist with asset `ml-25m-cache.tar.gz`; otherwise
-regenerate the cache with `python scripts/run_all.py --phase phase2`. You can also fetch
-the cache on its own with `./scripts/fetch_cache.sh phase2`.
+regenerate the cache with `python scripts/run_all.py --accelerator auto`. You can also fetch
+the cache on its own with `./scripts/fetch_cache.sh`.
 
 ## Runs anywhere — pick your accelerator
 
@@ -88,8 +88,8 @@ set `ACCELERATOR` to match the runtime, and run all cells.
 
 | Phase | Dataset | Use | Flag |
 | --- | --- | --- | --- |
-| Phase 1 | `ml-latest-small` (100K ratings) | fast dev + demo | `--phase phase1` (default) |
-| Phase 2 | `ml-25m` (25M ratings) | scale / final numbers | `--phase phase2` |
+| Phase 2 | `ml-25m` (25M ratings) | default app, scale / final numbers | default / `--phase phase2` |
+| Phase 1 | `ml-latest-small` (100K ratings) | small research/dev run | `--phase phase1` |
 
 ## The app (React + FastAPI, 3 modes)
 

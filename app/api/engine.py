@@ -130,7 +130,7 @@ def _token_match(a: str, b: str) -> float:
 class DemoEngine:
     """Loads every cached artifact once and answers demo queries."""
 
-    def __init__(self, phase: str = "phase1"):
+    def __init__(self, phase: str = "phase2"):
         self.cfg = get_config(phase)
         self.accel = Accelerator("cpu", verbose=False)
         self.mf = MFArtifacts.load(self.cfg.cache_dir / "mf.npz")

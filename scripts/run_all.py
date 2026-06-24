@@ -2,12 +2,12 @@
 
 Examples
 --------
-    python scripts/run_all.py --accelerator auto          # local (mps/cuda/cpu)
+    python scripts/run_all.py --accelerator auto          # phase2 local (mps/cuda/cpu)
     python scripts/run_all.py --accelerator cpu           # Kaggle "None"
     python scripts/run_all.py --accelerator cuda          # Kaggle "GPU P100"
     python scripts/run_all.py --accelerator cuda_multi    # Kaggle "GPU T4 x2"
     python scripts/run_all.py --accelerator tpu           # Kaggle "TPU v5e-8"
-    python scripts/run_all.py --phase phase2 --accelerator cuda   # scale (ml-25m)
+    python scripts/run_all.py --phase phase1 --accelerator auto   # small dev run
 """
 from __future__ import annotations
 

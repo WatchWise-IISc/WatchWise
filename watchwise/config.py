@@ -78,10 +78,10 @@ class WatchWiseConfig:
     """All hyperparameters and paths in one place."""
 
     # --- phase / data ------------------------------------------------------ #
-    phase: str = "phase1"
-    dataset: str = "ml-latest-small"     # phase2 -> "ml-25m" or "ml-32m"
+    phase: str = "phase2"
+    dataset: str = "ml-25m"
     dataset_url: str = (
-        "https://files.grouplens.org/datasets/movielens/ml-latest-small.zip"
+        "https://files.grouplens.org/datasets/movielens/ml-25m.zip"
     )
 
     # --- compute ----------------------------------------------------------- #
@@ -91,11 +91,11 @@ class WatchWiseConfig:
     seed: int = 42
 
     # --- matrix factorization (spec §12.1) --------------------------------- #
-    mf_latent_dim: int = 64
-    mf_lr: float = 5e-3
-    mf_weight_decay: float = 1e-4
-    mf_epochs: int = 40
-    mf_batch_size: int = 1024
+    mf_latent_dim: int = 128
+    mf_lr: float = 1e-3
+    mf_weight_decay: float = 1e-5
+    mf_epochs: int = 12
+    mf_batch_size: int = 8192
 
     # --- text / content features (spec §16, D6) ---------------------------- #
     # Frozen sentence encoder; falls back to TF-IDF+SVD if unavailable.
@@ -105,24 +105,24 @@ class WatchWiseConfig:
     text_encoder_timeout_s: int = 240    # hang guard: fall back if encoding stalls
 
     # --- diffusion candidate generator (spec §12.2) ----------------------- #
-    diff_num_timesteps: int = 200        # T
+    diff_num_timesteps: int = 500        # T
     diff_beta_schedule: str = "cosine"
     diff_beta_start: float = 1e-4
     diff_beta_end: float = 0.02
-    diff_hidden_dim: int = 256
-    diff_num_layers: int = 3
-    diff_time_embed_dim: int = 64
-    diff_lr: float = 1e-3
-    diff_epochs: int = 300
-    diff_batch_size: int = 256
-    diff_sampling_steps: int = 50        # DDIM steps at inference (< T)
-    diff_num_candidates: int = 100       # candidate vectors sampled per group
+    diff_hidden_dim: int = 512
+    diff_num_layers: int = 4
+    diff_time_embed_dim: int = 128
+    diff_lr: float = 3e-4
+    diff_epochs: int = 120
+    diff_batch_size: int = 2048
+    diff_sampling_steps: int = 100       # DDIM steps at inference (< T)
+    diff_num_candidates: int = 300       # candidate vectors sampled per group
     diff_guidance: float = 1.5           # classifier-free guidance scale at sampling
 
     # --- group formation (spec §12.3) -------------------------------------- #
     group_size_min: int = 2
     group_size_max: int = 5
-    num_groups: int = 600                # split 3 ways -> ~200 per kind (test ~30/kind)
+    num_groups: int = 2000               # split 3 ways -> ~667 per kind
     num_taste_clusters: int = 8
     holdout_frac: float = 0.2
     group_split: Tuple[float, float, float] = (0.70, 0.15, 0.15)
@@ -138,14 +138,14 @@ class WatchWiseConfig:
     w2_sweep: Tuple[float, ...] = (0.0, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0)
 
     # --- candidate pool ---------------------------------------------------- #
-    candidate_pool_size: int = 80        # filtered pool fed to the reranker
+    candidate_pool_size: int = 120       # filtered pool fed to the reranker
     nn_pool_multiplier: int = 4          # NN retrieves K*size members then unions
 
     # --- RL slate-builder (spec §12.4 / §10.3) ----------------------------- #
     rl_lr: float = 3e-4
     rl_gamma: float = 0.99
     rl_entropy_coef: float = 0.01
-    rl_episodes: int = 4000
+    rl_episodes: int = 20000
     rl_hidden_dim: int = 128
     rl_reward_shaping: str = "dense"     # "dense" | "terminal"
 
@@ -207,7 +207,28 @@ class WatchWiseConfig:
 
 def phase1_config(**overrides) -> WatchWiseConfig:
     """Fast development preset (Mac MPS / Kaggle): ml-latest-small."""
-    cfg = WatchWiseConfig(phase="phase1", dataset="ml-latest-small")
+    cfg = WatchWiseConfig(
+        phase="phase1",
+        dataset="ml-latest-small",
+        dataset_url="https://files.grouplens.org/datasets/movielens/ml-latest-small.zip",
+        mf_latent_dim=64,
+        mf_lr=5e-3,
+        mf_weight_decay=1e-4,
+        mf_epochs=40,
+        mf_batch_size=1024,
+        diff_num_timesteps=200,
+        diff_hidden_dim=256,
+        diff_num_layers=3,
+        diff_time_embed_dim=64,
+        diff_lr=1e-3,
+        diff_epochs=300,
+        diff_batch_size=256,
+        diff_sampling_steps=50,
+        diff_num_candidates=100,
+        num_groups=600,
+        candidate_pool_size=80,
+        rl_episodes=4000,
+    )
     for k, v in overrides.items():
         setattr(cfg, k, v)
     return cfg
@@ -215,23 +236,13 @@ def phase1_config(**overrides) -> WatchWiseConfig:
 
 def phase2_config(**overrides) -> WatchWiseConfig:
     """Scale preset (borrowed GPU / Kaggle): ml-25m, larger models (spec §13.3)."""
-    cfg = WatchWiseConfig(
-        phase="phase2",
-        dataset="ml-25m",
-        dataset_url="https://files.grouplens.org/datasets/movielens/ml-25m.zip",
-        mf_latent_dim=128, mf_lr=1e-3, mf_weight_decay=1e-5,
-        mf_epochs=12, mf_batch_size=8192,
-        diff_num_timesteps=500, diff_hidden_dim=512, diff_num_layers=4,
-        diff_time_embed_dim=128, diff_lr=3e-4, diff_epochs=120,
-        diff_batch_size=2048, diff_sampling_steps=100, diff_num_candidates=300,
-        num_groups=2000, rl_episodes=20000, candidate_pool_size=120,
-    )
+    cfg = WatchWiseConfig()
     for k, v in overrides.items():
         setattr(cfg, k, v)
     return cfg
 
 
-def get_config(phase: str = "phase1", **overrides) -> WatchWiseConfig:
+def get_config(phase: str = "phase2", **overrides) -> WatchWiseConfig:
     cfg = phase2_config(**overrides) if phase == "phase2" else phase1_config(**overrides)
     cfg.ensure_dirs()
     return cfg

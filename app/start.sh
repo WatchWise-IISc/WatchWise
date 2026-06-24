@@ -1,31 +1,32 @@
 #!/usr/bin/env bash
 # Start WatchWise 2.0 — FastAPI backend + React frontend
-# Usage: ./app/start.sh [--phase phase1|phase2]
+# Usage: ./app/start.sh
 
 set -e
 cd "$(dirname "$0")/.."
 
-PHASE="${WATCHWISE_PHASE:-phase2}"
-for arg in "$@"; do
-  case $arg in
-    --phase=*) PHASE="${arg#*=}" ;;
-    --phase) shift; PHASE="$1" ;;
-  esac
-done
+if [ "$#" -ne 0 ]; then
+  echo "Usage: ./app/start.sh" >&2
+  exit 2
+fi
 
+PHASE="phase2"
 export WATCHWISE_PHASE="$PHASE"
 
-# Custom ports chosen to avoid the very common defaults (Vite 5173, uvicorn 8000)
-# and reduce collisions with other dev servers.
-BACKEND_PORT=18790
-FRONTEND_PORT=18791
+# Custom ports chosen to reduce collisions with other dev servers.
+BACKEND_PORT="${WATCHWISE_BACKEND_PORT:-18790}"
+FRONTEND_PORT="${WATCHWISE_FRONTEND_PORT:-18791}"
+export WATCHWISE_BACKEND_PORT="$BACKEND_PORT"
+export WATCHWISE_FRONTEND_PORT="$FRONTEND_PORT"
+export VITE_FRONTEND_PORT="$FRONTEND_PORT"
+export VITE_API_TARGET="${VITE_API_TARGET:-http://localhost:$BACKEND_PORT}"
 
 echo "=== WatchWise 2.0 (phase=$PHASE) ==="
 echo ""
 
 # Ensure cached model artifacts exist (downloads from the GitHub Release on first run;
 # data/cache/ is gitignored because the binaries are too large for plain git).
-bash scripts/fetch_cache.sh "$PHASE"
+bash scripts/fetch_cache.sh
 
 # Check if node_modules exists
 if [ ! -d "app/frontend/node_modules" ]; then
@@ -33,8 +34,7 @@ if [ ! -d "app/frontend/node_modules" ]; then
   cd app/frontend && npm install && cd ../..
 fi
 
-# Kill stale processes on the custom ports we use (avoids "address already in use"
-# and surprises from previous runs on 5173/8000 or leftover uvicorn/vite).
+# Kill stale processes on the custom ports we use.
 echo "[start] Cleaning up any stale listeners on :$BACKEND_PORT and :$FRONTEND_PORT..."
 for p in $BACKEND_PORT $FRONTEND_PORT; do
   pids=$(lsof -ti:$p 2>/dev/null || true)

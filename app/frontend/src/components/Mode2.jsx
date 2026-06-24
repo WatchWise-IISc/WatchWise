@@ -7,7 +7,7 @@ import CustomGroupBuilder, {
 } from './CustomGroupBuilder.jsx'
 import GroupPanel from './GroupPanel.jsx'
 import SlateTable from './SlateTable.jsx'
-import { CheckCircle, Filter, Play, RefreshCw, ToggleLeft, ToggleRight, Tv } from 'lucide-react'
+import { CheckCircle, Filter, Play, RefreshCw, Star, ToggleLeft, ToggleRight, Tv } from 'lucide-react'
 
 const OTT_PROVIDERS = [
   'Netflix',
@@ -121,6 +121,7 @@ export default function Mode2() {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
   const [showFiltersDeepDive, setShowFiltersDeepDive] = useState(false)
+  const [addMemberClicked, setAddMemberClicked] = useState(false)
   const canRun = selectedProviders.length > 0 && (
     groupSource === 'custom'
       ? customMembersReady(customMembers)
@@ -474,8 +475,36 @@ export default function Mode2() {
                   setCustomMembers(next)
                   setResult(null)
                 }}
+                onAddMember={() => setAddMemberClicked(true)}
                 compact
               />
+
+              {addMemberClicked && (
+                <button
+                  type="button"
+                  onClick={handleRecommend}
+                  disabled={loading || !canRun}
+                  className="swiss-button mt-5 w-full py-4"
+                >
+                  {loading ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                      <span>Recommending…</span>
+                    </>
+                  ) : (
+                    <>
+                      <Star className="h-4 w-4" />
+                      <span>
+                        {selectedProviders.length === 0
+                          ? 'Choose a service'
+                          : !customMembersReady(customMembers)
+                            ? 'Finish your group'
+                            : 'Recommend Movies'}
+                      </span>
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           )}
         </div>

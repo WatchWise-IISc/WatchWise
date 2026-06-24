@@ -19,7 +19,7 @@ REMOTE_DIR="${REMOTE_DIR:-/mnt/watchwise-data/watchwise}"
 BACKUP_ROOT="${BACKUP_ROOT:-/mnt/watchwise-data/watchwise-backups}"
 SERVICE_NAME="${SERVICE_NAME:-watchwise-api}"
 WATCHWISE_PHASE="${WATCHWISE_PHASE:-phase2}"
-API_PORT="${API_PORT:-18790}"
+API_PORT="${API_PORT:-${WATCHWISE_BACKEND_PORT:-18790}}"
 API_WORKERS="${API_WORKERS:-2}"
 BACKUP_KEEP="${BACKUP_KEEP:-2}"
 
@@ -96,12 +96,19 @@ TS="$(date '+%Y%m%d-%H%M%S')"
 sudo mkdir -p "$BACKUP_ROOT"
 if [ -d "$REMOTE_DIR" ]; then
   sudo mkdir -p "$BACKUP_ROOT/watchwise-$TS"
+  # Back up the live deployment (including .env) so a redeploy is recoverable.
+  # Only the regenerable build artifacts are skipped; the runtime secret is kept.
   sudo rsync -a --delete \
-    --exclude '.env' \
     --exclude '.venv/' \
     --exclude 'app/frontend/node_modules/' \
     --exclude 'app/frontend/dist/' \
     "$REMOTE_DIR/" "$BACKUP_ROOT/watchwise-$TS/"
+  # Stage the current runtime secret separately so it can never be stranded:
+  # the clean rm -rf below removes the live .env, and the local checkout may
+  # not carry one to re-sync. This copy is restored in the setup step.
+  if [ -f "$REMOTE_DIR/.env" ]; then
+    sudo cp -p "$REMOTE_DIR/.env" "$BACKUP_ROOT/.env.last"
+  fi
   sudo rm -rf "$REMOTE_DIR"
   echo "[remote] backup: $BACKUP_ROOT/watchwise-$TS"
 fi
@@ -125,7 +132,6 @@ rsync -az --delete --relative \
   --exclude 'app/frontend/node_modules/' \
   --exclude 'app/frontend/dist/' \
   --exclude 'data/raw/' \
-  --exclude 'data/cache/ml-latest-small/' \
   -e "$RSYNC_RSH" \
   "${SYNC_PATHS[@]}" \
   "$REMOTE:$REMOTE_DIR/"
@@ -137,9 +143,15 @@ fi
 
 log "Installing dependencies, building frontend, and configuring services"
 ssh "${SSH_OPTS[@]}" "$REMOTE" \
-  "REMOTE_DIR='$REMOTE_DIR' SERVICE_NAME='$SERVICE_NAME' WATCHWISE_PHASE='$WATCHWISE_PHASE' API_PORT='$API_PORT' API_WORKERS='$API_WORKERS' bash -s" <<'REMOTE_SETUP'
+  "REMOTE_DIR='$REMOTE_DIR' BACKUP_ROOT='$BACKUP_ROOT' SERVICE_NAME='$SERVICE_NAME' WATCHWISE_PHASE='$WATCHWISE_PHASE' API_PORT='$API_PORT' API_WORKERS='$API_WORKERS' bash -s" <<'REMOTE_SETUP'
 set -euo pipefail
 cd "$REMOTE_DIR"
+
+# Restore the runtime secret if the synced checkout did not carry a .env.
+if [ ! -f "$REMOTE_DIR/.env" ] && [ -f "$BACKUP_ROOT/.env.last" ]; then
+  echo "[remote] no .env synced; restoring preserved runtime secret"
+  cp -p "$BACKUP_ROOT/.env.last" "$REMOTE_DIR/.env"
+fi
 
 if [ ! -f "data/cache/ml-25m/mf.npz" ]; then
   echo "[remote] missing phase2 cache after sync" >&2
@@ -177,6 +189,7 @@ User=${REMOTE_USER}
 Group=${REMOTE_GROUP}
 WorkingDirectory=${REMOTE_DIR}
 Environment=WATCHWISE_PHASE=${WATCHWISE_PHASE}
+Environment=WATCHWISE_BACKEND_PORT=${API_PORT}
 EnvironmentFile=-${REMOTE_DIR}/.env
 Environment=PYTHONUNBUFFERED=1
 Environment=OMP_NUM_THREADS=2
@@ -245,6 +258,24 @@ curl -fsS "http://127.0.0.1/api/health" >/dev/null || {
   sudo nginx -T >&2
   exit 1
 }
+
+# Functional check: health only proves the process is up. Exercise the actual
+# recommendation pipeline (group listing + a Mode 1 slate) to prove the cached
+# artifacts loaded and the engine can produce recommendations end to end.
+echo "[remote] verifying recommendation pipeline via nginx proxy"
+GID="$(curl -fsS --max-time 30 "http://127.0.0.1/api/groups?kind=divergent&mode=mode1" \
+  | python3 -c 'import sys, json; gs = json.load(sys.stdin).get("groups", []); print(gs[0]["gid"] if gs else "")')"
+if [ -z "$GID" ]; then
+  echo "[remote] /api/groups returned no groups" >&2
+  sudo journalctl -u "$SERVICE_NAME" -n 80 --no-pager >&2
+  exit 1
+fi
+curl -fsS --max-time 120 "http://127.0.0.1/api/mode1/recommend?gid=${GID}" >/dev/null || {
+  echo "[remote] Mode 1 recommendation failed for gid=${GID}" >&2
+  sudo journalctl -u "$SERVICE_NAME" -n 80 --no-pager >&2
+  exit 1
+}
+echo "[remote] pipeline verified: groups listed and Mode 1 slate built for gid=${GID}"
 
 echo "[remote] deployment complete"
 REMOTE_SETUP

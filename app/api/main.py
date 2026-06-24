@@ -19,13 +19,16 @@ if str(ROOT) not in sys.path:
 
 from app.api.engine import CURATED_MODE3_FAMILIES, DemoEngine  # noqa: E402
 
+DEFAULT_APP_PHASE = "phase2"
+DEFAULT_FRONTEND_PORT = "18791"
+
 engine: Optional[DemoEngine] = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global engine
-    phase = os.environ.get("WATCHWISE_PHASE", "phase2")
+    phase = os.environ.get("WATCHWISE_PHASE", DEFAULT_APP_PHASE)
     print(f"[api] loading cached artifacts (phase={phase}) ...")
     engine = DemoEngine(phase=phase)
     print("[api] ready.")
@@ -37,7 +40,10 @@ app = FastAPI(title="WatchWise 2.0 API", version="2.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:18791", "http://127.0.0.1:18791"],
+    allow_origins=[
+        f"http://localhost:{os.environ.get('WATCHWISE_FRONTEND_PORT', DEFAULT_FRONTEND_PORT)}",
+        f"http://127.0.0.1:{os.environ.get('WATCHWISE_FRONTEND_PORT', DEFAULT_FRONTEND_PORT)}",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

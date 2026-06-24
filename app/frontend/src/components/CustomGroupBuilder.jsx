@@ -219,7 +219,7 @@ function MoviePicker({ member, onAddMovie, onRemoveMovie }) {
   )
 }
 
-export default function CustomGroupBuilder({ members, onMembersChange, compact = false }) {
+export default function CustomGroupBuilder({ members, onMembersChange, compact = false, onAddMember }) {
   const [genres, setGenres] = useState(FALLBACK_GENRES)
 
   useEffect(() => {
@@ -243,6 +243,7 @@ export default function CustomGroupBuilder({ members, onMembersChange, compact =
       ...members,
       { id: Date.now(), name: `Member ${nextNum}`, genres: [], favorite_movies: [] },
     ])
+    if (onAddMember) onAddMember()
   }
 
   const removeMember = (id) => {

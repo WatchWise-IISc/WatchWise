@@ -113,7 +113,7 @@ function InsightCard({ metrics, watchwiseMethod = 'diffusion_rl' }) {
   )
 }
 
-function CustomColdStartSummary({ result }) {
+function CustomGroupSummary({ result }) {
   const base = result.metrics?.find((m) => m.method === 'avg_baseline')
   const watchwise = result.metrics?.find((m) => m.method === result.watchwise_method)
   if (!base || !watchwise) return null
@@ -124,7 +124,7 @@ function CustomColdStartSummary({ result }) {
         <div>
           <span className="swiss-section-title">Custom Group Result</span>
           <h3 className="mt-1 font-display text-2xl font-extrabold uppercase tracking-tighter">
-            Cold-start proxy slate generated
+            Custom group slate generated
           </h3>
         </div>
         <span className="swiss-tag swiss-tag-accent">{result.watchwise_method_label || result.watchwise_method}</span>
@@ -445,7 +445,7 @@ export default function Mode1() {
           <GroupPanel group={result.group} />
 
           {result.custom ? (
-            <CustomColdStartSummary result={result} />
+            <CustomGroupSummary result={result} />
           ) : (
             <InsightCard
               metrics={result.metrics}
