@@ -1,3 +1,7 @@
+# WatchWise 2.0 — Fairness-Aware Group Movie Recommender
+
+## Project Abstract
+
 WatchWise is a group movie recommendation system designed to help families and friends reach a consensus on what to watch together. Group movie selection is inherently challenging due to diverse individual tastes and practical constraints like streaming availability, runtime, and age suitability. While conventional recommendation systems optimize for individual users or default to majority preferences, WatchWise treats selection as a group decision problem. It aims to generate a concise list of three to five movies that balance collective interests while ensuring fairness for the least satisfied participant.
 
 The system maps users and movies into a shared latent preference space by learning embeddings from real movie rating data. Individual user embeddings are aggregated into a unified group embedding to capture collective preferences. WatchWise then generates candidate movies by combining two complementary approaches: traditional nearest neighbor retrieval and diffusion based generation.
