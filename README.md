@@ -12,8 +12,6 @@ This project does not assume diffusion is inherently superior to established tec
 
 ---
 
-# WatchWise 2.0 — Fairness-Aware Group Movie Recommender
-
 ## Project Overview
 
 WatchWise is a Python research pipeline with a React/FastAPI demo app. The core experiment asks whether a conditional diffusion candidate generator can improve group-compromise recommendations compared with traditional nearest-neighbor retrieval when both are evaluated under controlled reranking and filtering conditions.
