@@ -12,6 +12,9 @@ matplotlib>=3.6
 fastapi>=0.111
 uvicorn[standard]>=0.30
 
+# Test runner.
+pytest>=8.0
+
 # Frozen text encoder (optional — TF-IDF+SVD fallback runs if this/its model is
 # unavailable, e.g. Kaggle with internet off).
 sentence-transformers>=2.2

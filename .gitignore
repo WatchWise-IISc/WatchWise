@@ -30,6 +30,10 @@ app/frontend/dist/
 # --- Canonical spec (excluded from the repo per request) ---
 WATCHWISE_MASTER_SPEC.md
 
+# --- Report materials (kept local until explicitly released) ---
+REPORT.md
+report/
+
 # --- Large downloaded / cached / generated data (regenerable by the pipeline) ---
 data/raw/
 data/cache/

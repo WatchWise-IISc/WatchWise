@@ -18,10 +18,9 @@ The project is grounded in MovieLens ratings. It trains matrix-factorization use
 
 Primary references:
 
-- `WATCHWISE_MASTER_SPEC.md`: canonical scientific and system specification.
-- `REPORT.md`: academic write-up and final reported results.
 - `AGENTS.md`: repository-wide coding-agent conventions.
 - `CLAUDE.md`: Claude Code implementation guardrails.
+- Full report materials and the master scientific specification are kept local until they are explicitly released.
 
 ## Experiment Design
 
@@ -195,6 +194,8 @@ The published cache is expected at GitHub Release tag `phase2-cache` as `ml-25m-
 export WATCHWISE_REPO=owner/repo
 export WATCHWISE_CACHE_TAG=phase2-cache
 ```
+
+For private GitHub releases, set `GITHUB_TOKEN` or `GH_TOKEN` with repository read access before running `./app/start.sh` or `./scripts/fetch_cache.sh`. The fetch script also tries the local Git credential helper when no token environment variable is set.
 
 ## App Modes
 
